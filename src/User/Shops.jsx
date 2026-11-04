@@ -50,7 +50,7 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false, retry: false, gcTime: 10 * 60 * 1000 } },
 });
 
-const BATCH = 12;
+const PAGE_SIZE = 12;
 const SAVED_KEY = 'nb_saved_shops';
 const SAVED_MAX = 500;
 const SHOPS_MAX = 2000;
@@ -61,11 +61,11 @@ const STATS_STALE = 5 * 60 * 1000;
 const QUERY_MAX = 100;
 const ID_RE = /^[\w-]{1,64}$/;
 const DESKTOP_Q = '(min-width: 1024px)';
+const MOBILE_Q = '(max-width: 639.98px)';
 const REDUCED_Q = '(prefers-reduced-motion: reduce)';
-const STAGGER = Array.from({ length: 12 }, (_, i) => ({ '--i': i }));
-const RISE = Array.from({ length: 4 }, (_, i) => ({ '--d': i }));
+const STAGGER = Array.from({ length: PAGE_SIZE }, (_, i) => ({ '--i': i }));
 const BLOCKED_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
-const GRID = 'grid grid-cols-1 gap-6 min-[720px]:grid-cols-2 xl:grid-cols-3';
+const GRID = 'grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3';
 const RATING_STEPS = [4, 4.5, 4.8];
 const EMPTY_LIST = [];
 
@@ -75,6 +75,19 @@ const BAD_LOGO_CHARS = /[\x00-\x1f\\<>"'`]/;
 const DATA_IMAGE = /^data:image\/(png|jpe?g|webp|gif|avif);base64,[a-z0-9+/=]+$/i;
 const REMOTE_SRC = /^(https?:)?\/\//i;
 const ANY_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
+
+const FOCUS = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
+const PRESS = 'transition-[transform,box-shadow,background-color,color,border-color] duration-150 active:translate-y-0.5 active:[box-shadow:none] motion-reduce:transition-none';
+const SHADOW = (n) => `[box-shadow:calc(var(--dx)*${n}px)_${n}px_0_0_var(--shd)]`;
+const CARD = `rounded-2xl border-[3px] border-[color:var(--ln)] bg-[color:var(--sf)] text-[color:var(--tx)] ${SHADOW(4)}`;
+const CHIP = 'border-2 border-black bg-[#39ff88] text-emerald-950';
+const BTN_BASE = `inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border-[3px] font-extrabold ${PRESS} ${FOCUS} disabled:cursor-not-allowed disabled:opacity-50`;
+const BTN_PRIMARY = `${BTN_BASE} border-black bg-[#39ff88] text-emerald-950 ${SHADOW(3)} hover:bg-[#7dffb0]`;
+const BTN_SECONDARY = `${BTN_BASE} border-[color:var(--ln)] bg-[color:var(--sf)] text-[color:var(--tx)] ${SHADOW(3)} hover:bg-[color:var(--sf2)]`;
+const BTN_ON = `${BTN_BASE} border-black bg-[#39ff88] text-emerald-950 ${SHADOW(3)}`;
+const FIELD = `rounded-xl border-[3px] border-[color:var(--ln)] bg-[color:var(--sf)] text-[color:var(--tx)] ${SHADOW(3)}`;
+const TEXT_LINK = `rounded-md hover:underline hover:decoration-2 hover:underline-offset-4 ${FOCUS}`;
+const LIFT = '[@media(hover:hover)]:hover:-translate-y-0.5';
 
 const isHttpUrl = (raw) => {
   try {
@@ -106,36 +119,39 @@ const SHOPS_TRANSLATIONS = {
 const EXTRA = {
   en: {
     reviewOne: 'review', reviewMany: 'reviews', productOne: 'product', productMany: 'products',
-    noAddress: 'No address listed', loadingMore: 'Loading more shops', endOfList: 'You have seen all shops',
+    noAddress: 'No address listed',
     save: 'Save shop', saved: 'Saved', savedOnly: 'Saved only', directionsTo: 'Directions to', yourLocation: 'Your location',
     locating: 'Finding your location', locationDenied: 'We could not get your location. The shop is shown on the map.',
     openInMaps: 'Open in Maps', retryLocation: 'Try again',
     moreFilters: 'More filters', ratedOnly: 'Has ratings', hasPhone: 'Has phone number', hasAddress: 'Has address',
     repairAndSell: 'Repair & sell', sortVerified: 'Verified first', scrollPrev: 'Scroll back', scrollNext: 'Scroll forward',
     crumbHome: 'Home', crumbShops: 'Shops', breadcrumb: 'Breadcrumb',
-    pageSub: 'Find trusted repair and device shops near you. Compare ratings, services and locations.',
+    pagination: 'Pagination', prevPage: 'Previous page', nextPage: 'Next page', goToPage: 'Go to page', pageOf: 'Page {{page}} of {{total}}',
+    prev: 'Previous', next: 'Next',
   },
   ar: {
     reviewOne: 'تقييم', reviewMany: 'تقييمات', productOne: 'منتج', productMany: 'منتجات',
-    noAddress: 'لا يوجد عنوان مسجل', loadingMore: 'جارٍ تحميل المزيد من المتاجر', endOfList: 'لقد شاهدت جميع المتاجر',
+    noAddress: 'لا يوجد عنوان مسجل',
     save: 'حفظ المتجر', saved: 'تم الحفظ', savedOnly: 'المحفوظة فقط', directionsTo: 'الاتجاهات إلى', yourLocation: 'موقعك',
     locating: 'جارٍ تحديد موقعك', locationDenied: 'تعذر تحديد موقعك. يظهر المتجر على الخريطة.',
     openInMaps: 'فتح في الخرائط', retryLocation: 'إعادة المحاولة',
     moreFilters: 'فلاتر إضافية', ratedOnly: 'لديه تقييمات', hasPhone: 'لديه رقم هاتف', hasAddress: 'لديه عنوان',
     repairAndSell: 'صيانة وبيع', sortVerified: 'الموثقة أولاً', scrollPrev: 'السابق', scrollNext: 'التالي',
     crumbHome: 'الرئيسية', crumbShops: 'المتاجر', breadcrumb: 'مسار التنقل',
-    pageSub: 'اعثر على متاجر صيانة وأجهزة موثوقة بالقرب منك، وقارن التقييمات والخدمات والمواقع.',
+    pagination: 'ترقيم الصفحات', prevPage: 'الصفحة السابقة', nextPage: 'الصفحة التالية', goToPage: 'الانتقال إلى الصفحة', pageOf: 'الصفحة {{page}} من {{total}}',
+    prev: 'السابق', next: 'التالي',
   },
   fr: {
     reviewOne: 'avis', reviewMany: 'avis', productOne: 'produit', productMany: 'produits',
-    noAddress: 'Aucune adresse indiquée', loadingMore: "Chargement d'autres boutiques", endOfList: 'Vous avez vu toutes les boutiques',
+    noAddress: 'Aucune adresse indiquée',
     save: 'Enregistrer', saved: 'Enregistré', savedOnly: 'Enregistrées uniquement', directionsTo: 'Itinéraire vers', yourLocation: 'Votre position',
     locating: 'Localisation en cours', locationDenied: 'Position introuvable. La boutique est affichée sur la carte.',
     openInMaps: 'Ouvrir dans Maps', retryLocation: 'Réessayer',
     moreFilters: 'Plus de filtres', ratedOnly: 'Avec des notes', hasPhone: 'Avec téléphone', hasAddress: 'Avec adresse',
     repairAndSell: 'Réparation & vente', sortVerified: 'Vérifiées d’abord', scrollPrev: 'Précédent', scrollNext: 'Suivant',
     crumbHome: 'Accueil', crumbShops: 'Boutiques', breadcrumb: "Fil d'Ariane",
-    pageSub: 'Trouvez des boutiques de réparation et d’appareils de confiance près de chez vous. Comparez notes, services et adresses.',
+    pagination: 'Pagination', prevPage: 'Page précédente', nextPage: 'Page suivante', goToPage: 'Aller à la page', pageOf: 'Page {{page}} sur {{total}}',
+    prev: 'Précédent', next: 'Suivant',
   },
 };
 
@@ -207,52 +223,37 @@ const scrollToEl = (el) => {
   if (el) el.scrollIntoView({ block: 'start', behavior: prefersReduced() ? 'auto' : 'smooth' });
 };
 
-const NB_CSS = `
+const buildPages = (cur, total) => {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const set = new Set([1, total, cur, cur - 1, cur + 1]);
+  if (cur <= 3) { set.add(2); set.add(3); set.add(4); }
+  if (cur >= total - 2) { set.add(total - 1); set.add(total - 2); set.add(total - 3); }
+  const arr = [...set].filter((n) => n >= 1 && n <= total).sort((a, b) => a - b);
+  const out = [];
+  arr.forEach((n, i) => {
+    if (i && n - arr[i - 1] > 1) out.push(`gap-${n}`);
+    out.push(n);
+  });
+  return out;
+};
+
+const PAGE_CSS = `
 @font-face{font-family:'Poppins Fallback';src:local('Arial'),local('Helvetica');size-adjust:112.6%;ascent-override:93.4%;descent-override:35.2%;line-gap-override:7.4%}
-.nb{--dx:1;--nb-bg:#ffffff;--nb-card:#ffffff;--nb-ink:#052e1e;--nb-muted:rgba(5,46,30,.68);--nb-line:#e5e7eb;--nb-bd:#000000;--nb-gray:#f3f4f6;--nb-media:#ffffff;--nb-accent:#059669;--nb-btn:#39ff88;--nb-btn2:#7dffb0;--nb-on:#022c22;--nb-ring:#059669;--nb-scrim:rgba(0,0,0,.6);--nb-warn:#c2410c;--nb-glow:rgba(57,255,136,.18);--nb-ease:cubic-bezier(.22,.8,.2,1);
---nb-sh2:calc(var(--dx)*2px) 2px 0 0 var(--nb-bd);--nb-sh3:calc(var(--dx)*3px) 3px 0 0 var(--nb-bd);--nb-sh4:calc(var(--dx)*4px) 4px 0 0 var(--nb-bd);--nb-sh6:calc(var(--dx)*6px) 6px 0 0 var(--nb-bd);--nb-sh8:calc(var(--dx)*8px) 8px 0 0 var(--nb-bd);
-background:var(--nb-bg);color:var(--nb-ink);color-scheme:light;line-height:1.55;font-family:'Poppins','Poppins Fallback',ui-sans-serif,system-ui,-apple-system,'Segoe UI','Cairo',sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-.nb[dir=rtl]{--dx:-1}
-.nb-dark{--nb-bg:#121212;--nb-card:#1c1c1e;--nb-ink:#ffffff;--nb-muted:rgba(255,255,255,.66);--nb-line:rgba(255,255,255,.12);--nb-bd:#000000;--nb-gray:#2a2a2e;--nb-media:#161618;--nb-accent:#39ff88;--nb-btn:#39ff88;--nb-btn2:#7dffb0;--nb-on:#022c22;--nb-ring:#39ff88;--nb-scrim:rgba(0,0,0,.72);--nb-warn:#fdba74;--nb-glow:rgba(57,255,136,.14);color-scheme:dark}
-.nb[lang=ar]{font-family:'Cairo','Poppins',ui-sans-serif,system-ui,sans-serif}
-.nb[lang=ar] *{letter-spacing:0!important}
-.nb button,.nb input{font-family:inherit}
-.nb-gray{background:var(--nb-gray)}
-.nb-media{background:var(--nb-media)}
-.nb-muted{color:var(--nb-muted)}
-.nb-ic{color:var(--nb-accent)}
-.nb-warn{color:var(--nb-warn)}
-.nb-line{border-color:var(--nb-line)}
-.nb-bd{border-color:var(--nb-bd)}
-.nb-card{background:var(--nb-card);border:3px solid var(--nb-bd);border-radius:20px;box-shadow:var(--nb-sh4);transition:transform .35s var(--nb-ease),box-shadow .35s var(--nb-ease)}
-.nb-big{box-shadow:var(--nb-sh8)}
-@media (hover:hover){.nb-lift:hover{transform:translate3d(0,-3px,0);box-shadow:var(--nb-sh6)}}
-.nb-chip{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid var(--nb-bd);border-radius:10px;background:var(--nb-btn);color:var(--nb-on);box-shadow:var(--nb-sh2)}
-.nb-chip-warn{background:#fcd34d;color:#000}
-.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-bd);border-radius:12px;box-shadow:var(--nb-sh3);font-weight:700;cursor:pointer;transition:transform .2s var(--nb-ease),box-shadow .2s var(--nb-ease),background-color .2s ease,color .2s ease}
-@media (hover:hover){.nb-btn:hover:not(:disabled){background:var(--nb-btn);color:var(--nb-on);box-shadow:var(--nb-sh4);transform:translate3d(0,-1px,0)}}
-.nb-btn:active:not(:disabled){transform:translate3d(0,2px,0);box-shadow:none}
-.nb-btn:disabled{opacity:.45;cursor:not-allowed}
-.nb-btn-a,.nb-btn-on{background:var(--nb-btn);color:var(--nb-on);border-width:3px;box-shadow:var(--nb-sh4)}
-@media (hover:hover){.nb-btn-a:hover:not(:disabled),.nb-btn-on:hover:not(:disabled){background:var(--nb-btn2)}}
-.nb-btn:focus-visible,.nb-focus:focus-visible{outline:3px solid var(--nb-ring);outline-offset:2px}
-.nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-bd);border-radius:14px;box-shadow:var(--nb-sh3);transition:box-shadow .2s var(--nb-ease)}
-@media (hover:hover){.nb-field:hover{box-shadow:var(--nb-sh4)}}
-.nb-field:focus-within{outline:3px solid var(--nb-ring);outline-offset:2px}
-.nb-field input::placeholder{color:var(--nb-muted)}
-.nb-field input::-webkit-search-cancel-button,.nb-field input::-webkit-search-decoration{display:none;-webkit-appearance:none}
-.nb-dot{background:var(--nb-card);color:var(--nb-ink);border:3px dashed var(--nb-bd);border-radius:20px}
-.nb-rule{border-top:3px solid var(--nb-bd)}
-.nb-sk{position:relative;overflow:hidden;border-radius:12px;background:color-mix(in srgb,var(--nb-ink) 8%,transparent)}
-.nb-sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--nb-card) 70%,transparent),transparent);animation:nbShimmer 1.3s ease-in-out infinite}
-.nb[dir=rtl] .nb-sk::after{animation-direction:reverse}
-@keyframes nbShimmer{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
-.nb-opt{border-radius:12px;transition:background-color .2s ease,color .2s ease}
-@media (hover:hover){.nb-zoom img{transition:transform 1.1s var(--nb-ease),opacity .3s ease}.nb-zoom:hover img{transform:scale3d(1.04,1.04,1)}}
-@keyframes nbIn{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:none}}
-.nb-in{animation:nbIn .3s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*40ms)}
-@keyframes nbRise{from{opacity:0;transform:translate3d(0,16px,0)}to{opacity:1;transform:none}}
-.nb-rise{animation:nbRise .6s cubic-bezier(.16,.84,.24,1) both;animation-delay:calc(var(--d,0)*70ms)}
+.sh{--bd:#e5e7eb;--sf:#ffffff;--sf2:#f3f4f6;--tx:#052e1e;--mu:rgba(5,46,30,.68);--acc:#059669;--ln:#000000;--shd:#000000;--pg:#ffffff;--hi:rgba(255,255,255,.8);--scrim:rgba(0,0,0,.6);--dx:1;background:var(--pg);color:var(--tx);color-scheme:light;line-height:1.55;font-family:'Poppins','Poppins Fallback',ui-sans-serif,system-ui,-apple-system,'Segoe UI','Cairo',sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.sh[dir=rtl]{--dx:-1}
+.sh-dark{--bd:rgba(255,255,255,.16);--sf:#1c1c1e;--sf2:#2a2a2e;--tx:#ffffff;--mu:rgba(255,255,255,.66);--acc:#39ff88;--ln:rgba(255,255,255,.16);--shd:#0b4a35;--pg:#141414;--hi:rgba(255,255,255,.08);--scrim:rgba(0,0,0,.72);color-scheme:dark}
+.sh[lang=ar]{font-family:'Cairo','Poppins',ui-sans-serif,system-ui,sans-serif}
+.sh[lang=ar] *{letter-spacing:0!important}
+.sh button,.sh input{font-family:inherit}
+.sh-field input::placeholder{color:var(--mu)}
+.sh-field input::-webkit-search-cancel-button,.sh-field input::-webkit-search-decoration{display:none;-webkit-appearance:none}
+.sh-field:focus-within{outline:2px solid var(--acc);outline-offset:2px}
+@keyframes shShimmer{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+.sh-sk{position:relative;overflow:hidden}
+.sh-sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,var(--hi),transparent);animation:shShimmer 1.3s ease-in-out infinite}
+.sh[dir=rtl] .sh-sk::after{animation-direction:reverse}
+@keyframes shIn{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:none}}
+.sh-in{animation:shIn .3s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*35ms)}
 @keyframes shFade{from{opacity:0}to{opacity:1}}
 @keyframes shFadeOut{from{opacity:1}to{opacity:0}}
 @keyframes shModal{from{opacity:0;transform:translate3d(0,24px,0)}to{opacity:1;transform:none}}
@@ -261,29 +262,26 @@ background:var(--nb-bg);color:var(--nb-ink);color-scheme:light;line-height:1.55;
 @keyframes shDrawerOut{from{transform:none}to{transform:translate3d(calc(var(--dx,1)*-100%),0,0)}}
 @keyframes shPop{from{opacity:0;transform:translate3d(0,-6px,0)}to{opacity:1;transform:none}}
 @keyframes shHeart{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}
-@keyframes shDot{0%,80%,100%{transform:scale(.55);opacity:.4}40%{transform:scale(1);opacity:1}}
 .sh-fade{animation:shFade .18s ease-out both}
 .sh-fade-out{animation:shFadeOut .18s ease-in both}
 .sh-modal{animation:shModal .24s cubic-bezier(.2,.8,.2,1) both}
 .sh-modal-out{animation:shModalOut .18s ease-in both}
 .sh-drawer{animation:shDrawer .26s cubic-bezier(.2,.8,.2,1) both}
 .sh-drawer-out{animation:shDrawerOut .18s ease-in both}
-.sh-pop{animation:shPop .16s cubic-bezier(.2,.8,.2,1) both;transform-origin:top}
+.sh-pop{animation:shPop .14s cubic-bezier(.2,.8,.2,1) both;transform-origin:top}
 .sh-heart{animation:shHeart .3s ease-out}
-.sh-dot{animation:shDot 1s ease-in-out infinite}
-.sh-dot:nth-child(2){animation-delay:.15s}
-.sh-dot:nth-child(3){animation-delay:.3s}
 .sh-noscroll{scrollbar-width:none;-ms-overflow-style:none}
 .sh-noscroll::-webkit-scrollbar{display:none}
-.sh-lazy{content-visibility:auto;contain-intrinsic-size:auto 420px;padding:8px;margin:-8px}
-@media (prefers-reduced-motion:no-preference){html:has(.nb){scroll-behavior:smooth}}
-@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-field,.nb-opt,.nb-zoom img{transition:none}.nb-lift:hover,.nb-btn:hover:not(:disabled),.nb-zoom:hover img{transform:none}.nb-in,.nb-rise,.sh-fade,.sh-fade-out,.sh-modal,.sh-modal-out,.sh-drawer,.sh-drawer-out,.sh-pop,.sh-heart,.sh-dot{animation:none!important}.nb-sk::after{animation:none}}
+.sh-scroll{scrollbar-width:thin;scrollbar-color:var(--acc) transparent;overscroll-behavior:contain}
+.sh-defer{content-visibility:auto;contain-intrinsic-size:auto 420px}
+@media (prefers-reduced-motion:no-preference){html:has(.sh){scroll-behavior:smooth}}
+@media (prefers-reduced-motion:reduce){.sh-sk::after,.sh-in,.sh-fade,.sh-fade-out,.sh-modal,.sh-modal-out,.sh-drawer,.sh-drawer-out,.sh-pop,.sh-heart{animation:none!important}}
 `;
 
 if (typeof document !== 'undefined' && !document.querySelector('style[data-shops-styles]')) {
   const tag = document.createElement('style');
   tag.setAttribute('data-shops-styles', 'true');
-  tag.textContent = NB_CSS;
+  tag.textContent = PAGE_CSS;
   document.head.appendChild(tag);
 }
 
@@ -323,7 +321,6 @@ const getDesktop = () => window.matchMedia(DESKTOP_Q).matches;
 const getFalse = () => false;
 const useIsDesktop = () => useSyncExternalStore(subscribeDesktop, getDesktop, getFalse);
 
-const MOBILE_Q = '(max-width: 639.98px)';
 const subscribeMobile = subscribeMq(MOBILE_Q);
 const getMobile = () => window.matchMedia(MOBILE_Q).matches;
 const useIsMobile = () => useSyncExternalStore(subscribeMobile, getMobile, getFalse);
@@ -497,53 +494,41 @@ const ROLE_SECTIONS = [
   { role: 'SELLER', title: 'sellSectionTitle', sub: 'sellSectionSub' },
 ];
 
-const Sk = ({ className = '' }) => <div aria-hidden="true" className={`nb-sk ${className}`} />;
+const SK = 'sh-sk rounded-lg bg-[color:var(--bd)]';
+const Sk = ({ className = '' }) => <div aria-hidden="true" className={`${SK} ${className}`} />;
 
 const IconTile = memo(({ Icon, className = 'h-9 w-9', iconClassName = 'h-4 w-4' }) => (
-  <span aria-hidden="true" className={`nb-chip ${className}`}>
+  <span aria-hidden="true" className={`flex flex-shrink-0 items-center justify-center rounded-lg ${CHIP} ${className}`}>
     <Icon className={iconClassName} />
   </span>
 ));
 
 const Crumbs = memo(({ t }) => (
-  <nav aria-label={t('breadcrumb')} className="nb-muted flex flex-wrap items-center gap-2 text-sm font-medium">
-    <Link to="/" className="nb-focus rounded-md transition-colors hover:text-[color:var(--nb-accent)]">{t('crumbHome')}</Link>
-    <FiChevronRight aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 rtl:rotate-180" />
-    <span aria-current="page" className="text-[color:var(--nb-ink)]">{t('crumbShops')}</span>
+  <nav aria-label={t('breadcrumb')} className="flex flex-wrap items-center gap-1.5 text-xs font-bold sm:text-sm">
+    <Link to="/" className={TEXT_LINK}>{t('crumbHome')}</Link>
+    <FiChevronRight aria-hidden="true" className="h-3 w-3 flex-shrink-0 text-[color:var(--mu)] rtl:rotate-180" />
+    <span aria-current="page" className="text-[color:var(--mu)]">{t('crumbShops')}</span>
   </nav>
 ));
 
 const CardSkeleton = memo(({ carousel = false }) => (
-  <div className={`nb-card overflow-hidden ${carousel ? 'w-[72%] flex-shrink-0 sm:w-72' : ''}`} aria-hidden="true">
-    <Sk className="aspect-[16/10] w-full !rounded-none" />
-    <div className="space-y-2.5 p-3.5">
+  <div className={`overflow-hidden ${CARD} ${carousel ? 'w-[46%] flex-shrink-0 sm:w-64' : ''}`} aria-hidden="true">
+    <div className={`${SK} aspect-[4/3] w-full !rounded-none sm:aspect-[16/10]`} />
+    <div className="space-y-2.5 p-3 sm:p-3.5">
       <Sk className="h-4 w-3/4" />
       <Sk className="h-3 w-1/2" />
       <Sk className="h-3 w-2/3" />
       <div className="flex items-center justify-between pt-2">
-        <Sk className="h-9 w-20" />
+        <Sk className="h-9 w-16 sm:w-20" />
         <Sk className="h-9 w-9" />
       </div>
     </div>
   </div>
 ));
 
-const CarouselSkeleton = memo(() => (
-  <div className="py-6" aria-hidden="true">
-    <div className="mb-4 space-y-2">
-      <Sk className="h-6 w-48" />
-      <Sk className="h-3 w-64 max-w-full" />
-    </div>
-    <div className="flex gap-5 overflow-hidden">
-      {[0, 1, 2, 3].map((i) => <CardSkeleton key={i} carousel />)}
-    </div>
-  </div>
-));
-
 const PageSkeleton = memo(({ label }) => (
   <div role="status" aria-busy="true" aria-label={label}>
-    <CarouselSkeleton />
-    <div className="mb-4 mt-6 space-y-2">
+    <div className="mb-5 space-y-2">
       <Sk className="h-6 w-40" />
       <Sk className="h-3 w-56 max-w-full" />
     </div>
@@ -554,7 +539,7 @@ const PageSkeleton = memo(({ label }) => (
 ));
 
 const FilterSkeleton = memo(() => (
-  <div aria-hidden="true" className="nb-card space-y-6 self-start p-4">
+  <div aria-hidden="true" className={`space-y-6 self-start p-4 ${CARD}`}>
     {[0, 1].map((g) => (
       <div key={g} className="space-y-2">
         <Sk className="h-4 w-24" />
@@ -565,12 +550,12 @@ const FilterSkeleton = memo(() => (
 ));
 
 const StateBox = memo(({ label, hint, onAction, actionLabel, fetching }) => (
-  <div className="nb-dot nb-in flex flex-col items-center px-4 py-14 text-center">
+  <div className={`sh-in mx-auto flex max-w-lg flex-col items-center px-6 py-10 text-center ${CARD}`}>
     <ThemedIso type="shopsEmpty" tone="emerald" onGreen={false} className="mb-3 h-28 w-28" />
-    <p className="text-base font-bold">{label}</p>
-    {hint && <p className="nb-muted mt-1 max-w-md text-sm">{hint}</p>}
+    <h2 className="text-xl font-extrabold tracking-tight rtl:tracking-normal">{label}</h2>
+    {hint && <p className="mt-3 max-w-md text-sm font-medium text-[color:var(--mu)]">{hint}</p>}
     {onAction && actionLabel && (
-      <button type="button" onClick={() => onAction()} className="nb-btn nb-btn-a mt-5 min-h-11 px-4 text-sm">
+      <button type="button" onClick={() => onAction()} className={`${BTN_PRIMARY} mt-6 min-h-11 px-5 py-2.5 text-sm`}>
         <FiRefreshCw aria-hidden="true" className={`h-4 w-4 ${fetching ? 'animate-spin motion-reduce:animate-none' : ''}`} />{actionLabel}
       </button>
     )}
@@ -580,7 +565,7 @@ const StateBox = memo(({ label, hint, onAction, actionLabel, fetching }) => (
 const Chip = memo(({ active, onClick, children, icon: Icon, onRemove }) => (
   <button
     type="button" onClick={onClick} aria-pressed={active}
-    className={`nb-btn nb-focus h-10 flex-shrink-0 whitespace-nowrap px-3 text-xs ${active ? 'nb-btn-on' : ''}`}
+    className={`${active ? BTN_ON : BTN_SECONDARY} h-10 flex-shrink-0 whitespace-nowrap px-3 text-xs`}
   >
     {Icon && <Icon aria-hidden="true" className="h-4 w-4 flex-shrink-0" />}
     <span className="max-w-[10rem] truncate">{children}</span>
@@ -601,43 +586,43 @@ const ShopImage = memo(({ src, name, role, eager = false }) => {
   const onLoad = useCallback(() => { markImg(src, 'ok'); setLoaded(true); }, [src]);
   if (!src || failed) {
     return (
-      <div className="nb-gray absolute inset-0 flex items-end justify-center px-6 pt-5">
+      <div className="absolute inset-0 flex items-end justify-center bg-[color:var(--sf2)] px-6 pt-5">
         <ThemedIso type={isoRoleKey(role)} tone="emerald" onGreen={false} className="pointer-events-none h-full w-auto max-w-full" />
       </div>
     );
   }
   return (
     <>
-      {!loaded && <div aria-hidden="true" className="nb-sk absolute inset-0 !rounded-none" />}
+      {!loaded && <div aria-hidden="true" className={`${SK} absolute inset-0 !rounded-none`} />}
       <img
         ref={imgRef} src={src} alt={name || ''} width={400} height={250}
         loading={eager ? 'eager' : 'lazy'} fetchPriority={eager ? 'high' : 'low'} decoding="async" referrerPolicy="no-referrer"
         onLoad={onLoad} onError={onError}
-        className={`absolute inset-0 h-full w-full object-contain p-4 transition-opacity duration-300 motion-reduce:transition-none ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        className={`absolute inset-0 h-full w-full object-contain p-3 transition-opacity duration-300 motion-reduce:transition-none sm:p-4 ${loaded ? 'opacity-100' : 'opacity-0'}`}
       />
     </>
   );
 });
 
 const RatingLine = ({ rating, reviews, className = '' }) => (
-  <p className={`flex items-center gap-1 text-xs font-bold ${className}`}>
+  <p className={`flex items-center gap-1 text-xs font-extrabold ${className}`}>
     <RiStarFill className="h-3.5 w-3.5 text-amber-400" aria-hidden="true" />
     <span dir="ltr" className="tabular-nums">{rating.toFixed(1)}</span>
-    {reviews > 0 && <span dir="ltr" className="nb-muted font-semibold tabular-nums">({reviews})</span>}
+    {reviews > 0 && <span dir="ltr" className="font-semibold tabular-nums text-[color:var(--mu)]">({reviews})</span>}
   </p>
 );
 
 const SaveButton = ({ isSaved, onClick, t, className = '' }) => (
   <button
     type="button" onClick={onClick} aria-pressed={isSaved} aria-label={isSaved ? t('saved') : t('save')} title={isSaved ? t('saved') : t('save')}
-    className={`nb-btn nb-focus h-9 w-9 flex-shrink-0 !rounded-full ${className}`}
+    className={`${BTN_SECONDARY} h-8 w-8 flex-shrink-0 !rounded-full sm:h-9 sm:w-9 ${className}`}
   >
     <FiHeart key={String(isSaved)} className={`h-4 w-4 ${isSaved ? 'sh-heart text-rose-500' : ''}`} fill={isSaved ? 'currentColor' : 'none'} aria-hidden="true" />
   </button>
 );
 
 const VerifiedMark = ({ t }) => (
-  <span className="nb-ic inline-flex flex-shrink-0">
+  <span className="inline-flex flex-shrink-0 text-[color:var(--acc)]">
     <RiVerifiedBadgeLine aria-hidden="true" className="h-4 w-4" />
     <span className="sr-only">{t('verified')}</span>
   </span>
@@ -655,10 +640,10 @@ const useShopHandlers = (shop, actions) => {
 
 const CardActions = ({ showDetails, directions, t }) => (
   <div className="mt-auto flex items-center justify-between gap-2 pt-2">
-    <button type="button" onClick={showDetails} className="nb-btn nb-focus h-9 px-3 text-xs">
-      <FiInfo className="h-4 w-4" aria-hidden="true" />{t('details')}
+    <button type="button" onClick={showDetails} aria-label={t('details')} className={`${BTN_SECONDARY} h-9 flex-1 px-2 text-xs sm:flex-none sm:px-3`}>
+      <FiInfo className="h-4 w-4" aria-hidden="true" /><span className="hidden min-[400px]:inline">{t('details')}</span>
     </button>
-    <button type="button" onClick={directions} aria-label={t('getDirections')} title={t('getDirections')} className="nb-btn nb-btn-a nb-focus h-9 w-9">
+    <button type="button" onClick={directions} aria-label={t('getDirections')} title={t('getDirections')} className={`${BTN_PRIMARY} h-9 w-9 flex-shrink-0`}>
       <FiNavigation className="h-4 w-4" aria-hidden="true" />
     </button>
   </div>
@@ -666,7 +651,7 @@ const CardActions = ({ showDetails, directions, t }) => (
 
 const ShopCard = memo(({ shop, isSaved, actions, t, eager = false }) => {
   const role = getShopRole(shop);
-  const rs = roleStyle(role);
+  const RoleIcon = roleStyle(role).icon;
   const address = addressLine(shop);
   const hasRating = shop.rating > 0;
   const [mediaRef, logo] = useShopLogo(shop, eager);
@@ -676,29 +661,29 @@ const ShopCard = memo(({ shop, isSaved, actions, t, eager = false }) => {
   return (
     <article
       onClick={open} onKeyDown={onKey} tabIndex={0} aria-label={shop.name || t('unnamedShop')}
-      className="nb-card nb-lift nb-zoom nb-focus flex h-full cursor-pointer flex-col overflow-hidden"
+      className={`${CARD} ${PRESS} ${LIFT} ${FOCUS} flex h-full cursor-pointer flex-col overflow-hidden`}
     >
-      <div ref={mediaRef} className="nb-media nb-bd relative aspect-[16/10] w-full flex-shrink-0 overflow-hidden border-b-[3px] [contain:layout_paint]">
+      <div ref={mediaRef} className="relative aspect-[4/3] w-full flex-shrink-0 overflow-hidden border-b-[3px] border-[color:var(--ln)] bg-[color:var(--sf)] [contain:layout_paint] sm:aspect-[16/10]">
         <ShopImage src={logo} name={shop.name} role={role} eager={eager} />
-        <span className="nb-chip absolute start-3 top-3 max-w-[65%] gap-1.5 px-2.5 py-1 text-[11px] font-bold">
-          <rs.icon aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0" />
+        <span className={`absolute start-2 top-2 inline-flex max-w-[62%] items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-extrabold sm:start-3 sm:top-3 sm:max-w-[65%] sm:gap-1.5 sm:px-2.5 sm:text-[11px] ${CHIP}`}>
+          <RoleIcon aria-hidden="true" className="h-3 w-3 flex-shrink-0 sm:h-3.5 sm:w-3.5" />
           <span className="truncate">{serviceLabel(role, t)}</span>
         </span>
-        <SaveButton isSaved={isSaved} onClick={save} t={t} className="absolute end-3 top-3" />
+        <SaveButton isSaved={isSaved} onClick={save} t={t} className="absolute end-2 top-2 sm:end-3 sm:top-3" />
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-2 p-3.5">
-        <h3 className="flex min-w-0 items-center gap-1.5 text-sm font-bold leading-snug">
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5 p-2.5 sm:gap-2 sm:p-3.5">
+        <h3 className="flex min-w-0 items-center gap-1.5 text-[13px] font-extrabold leading-snug sm:text-sm">
           <span className="min-w-0 truncate">{shop.name || t('unnamedShop')}</span>
           {shop.verified && <VerifiedMark t={t} />}
         </h3>
         {hasRating && <RatingLine rating={shop.rating} reviews={reviews} />}
-        <p className="nb-muted flex min-w-0 items-center gap-1.5 text-xs font-semibold">
-          <FiMapPin aria-hidden="true" className="nb-ic h-3.5 w-3.5 flex-shrink-0" />
+        <p className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-[color:var(--mu)]">
+          <FiMapPin aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0 text-[color:var(--acc)]" />
           <span className="truncate">{address || t('noAddress')}</span>
         </p>
         {shop.shopType && (
-          <p className="nb-ic flex min-w-0 items-center gap-1.5 text-xs font-semibold">
+          <p className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-[color:var(--acc)]">
             <FiShoppingBag aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0" />
             <span className="truncate">{shop.shopType}</span>
           </p>
@@ -709,47 +694,11 @@ const ShopCard = memo(({ shop, isSaved, actions, t, eager = false }) => {
   );
 });
 
-const TopRatedCard = memo(({ shop, rank, isSaved, actions, t, eager = false }) => {
-  const role = getShopRole(shop);
-  const address = addressLine(shop);
-  const hasRating = shop.rating > 0;
-  const [mediaRef, logo] = useShopLogo(shop, eager);
-  const reviews = useMemo(() => shopFallback(shop).reviews, [shop]);
-  const { open, showDetails, directions, save, onKey } = useShopHandlers(shop, actions);
-
-  return (
-    <article
-      onClick={open} onKeyDown={onKey} tabIndex={0} aria-label={shop.name || t('unnamedShop')}
-      className="nb-card nb-lift nb-zoom nb-focus flex h-full cursor-pointer items-stretch gap-4 overflow-hidden p-4"
-    >
-      <div ref={mediaRef} className="nb-media nb-bd relative h-28 w-28 flex-shrink-0 self-center overflow-hidden rounded-2xl border-2 [contain:layout_paint] sm:h-32 sm:w-32">
-        <ShopImage src={logo} name={shop.name} role={role} eager={eager} />
-      </div>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-center justify-between gap-2">
-          <span dir="ltr" aria-hidden="true" className="nb-gray nb-bd rounded-lg border-2 px-2 py-0.5 text-xs font-bold tabular-nums">#{rank}</span>
-          <SaveButton isSaved={isSaved} onClick={save} t={t} />
-        </div>
-        <h3 className="mt-2 flex min-w-0 items-center gap-1.5 text-sm font-bold leading-snug">
-          <span className="min-w-0 truncate">{shop.name || t('unnamedShop')}</span>
-          {shop.verified && <VerifiedMark t={t} />}
-        </h3>
-        {hasRating && <RatingLine rating={shop.rating} reviews={reviews} className="mt-1" />}
-        <p className="nb-muted mt-1 flex min-w-0 items-center gap-1.5 text-xs font-semibold">
-          <FiMapPin aria-hidden="true" className="nb-ic h-3.5 w-3.5 flex-shrink-0" />
-          <span className="truncate">{address || t('noAddress')}</span>
-        </p>
-        <CardActions showDetails={showDetails} directions={directions} t={t} />
-      </div>
-    </article>
-  );
-});
-
 const ShopCell = memo(({ index, className = '', children }) => (
-  <div className={`nb-in min-w-0 ${className}`} style={STAGGER[index % STAGGER.length]}>{children}</div>
+  <div className={`sh-in min-w-0 ${className}`} style={STAGGER[index % STAGGER.length]}>{children}</div>
 ));
 
-const Carousel = memo(({ title, subtitle, count, onViewAll, viewAllLabel, shops, saved, actions, t, featured = false }) => {
+const Carousel = memo(({ title, subtitle, count, onViewAll, viewAllLabel, shops, saved, actions, t }) => {
   const ref = useRef(null);
   const scroll = useCallback((d) => {
     const el = ref.current;
@@ -758,31 +707,29 @@ const Carousel = memo(({ title, subtitle, count, onViewAll, viewAllLabel, shops,
     el.scrollBy({ left: d * sign * el.clientWidth * 0.8, behavior: prefersReduced() ? 'auto' : 'smooth' });
   }, []);
   return (
-    <section aria-label={title} className="sh-lazy mb-8">
+    <section aria-label={title} className="sh-defer mb-8">
       <div className="mb-4 flex items-end justify-between gap-4">
         <div className="min-w-0">
-          <h2 className="text-xl font-bold leading-tight tracking-tight sm:text-2xl">
+          <h2 className="text-xl font-extrabold leading-tight tracking-tight rtl:tracking-normal sm:text-2xl">
             {title}
-            {count != null && <span dir="ltr" className="nb-muted ms-2 text-sm font-semibold tabular-nums">({count})</span>}
+            {count != null && <span dir="ltr" className="ms-2 text-sm font-semibold tabular-nums text-[color:var(--mu)]">({count})</span>}
           </h2>
-          {subtitle && <p className="nb-muted mt-1.5 line-clamp-1 text-sm">{subtitle}</p>}
+          {subtitle && <p className="mt-1.5 line-clamp-1 text-sm font-medium text-[color:var(--mu)]">{subtitle}</p>}
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
           {onViewAll && (
-            <button type="button" onClick={onViewAll} className="nb-btn nb-focus h-10 px-3 text-xs">
+            <button type="button" onClick={onViewAll} className={`${BTN_SECONDARY} h-10 px-3 text-xs`}>
               {viewAllLabel}<FiArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
             </button>
           )}
-          <button type="button" onClick={() => scroll(-1)} aria-label={t('scrollPrev')} className="nb-btn nb-focus hidden h-10 w-10 sm:inline-flex"><FiChevronLeft className="h-5 w-5 rtl:rotate-180" aria-hidden="true" /></button>
-          <button type="button" onClick={() => scroll(1)} aria-label={t('scrollNext')} className="nb-btn nb-focus hidden h-10 w-10 sm:inline-flex"><FiChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" /></button>
+          <button type="button" onClick={() => scroll(-1)} aria-label={t('scrollPrev')} className={`${BTN_SECONDARY} hidden h-10 w-10 sm:inline-flex`}><FiChevronLeft className="h-5 w-5 rtl:rotate-180" aria-hidden="true" /></button>
+          <button type="button" onClick={() => scroll(1)} aria-label={t('scrollNext')} className={`${BTN_SECONDARY} hidden h-10 w-10 sm:inline-flex`}><FiChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" /></button>
         </div>
       </div>
-      <div ref={ref} className="sh-noscroll -mx-2 flex snap-x snap-mandatory gap-5 overflow-x-auto px-2 pb-3 pt-1">
+      <div ref={ref} className="sh-noscroll -mx-2 flex snap-x snap-mandatory gap-3 overflow-x-auto px-2 pb-4 pt-1 sm:gap-5">
         {shops.map((s, i) => (
-          <ShopCell key={s.id} index={i} className={`flex-shrink-0 snap-start ${featured ? 'w-[88%] sm:w-[25rem]' : 'w-[72%] sm:w-72'}`}>
-            {featured
-              ? <TopRatedCard shop={s} rank={i + 1} isSaved={saved.has(s.id)} actions={actions} t={t} eager={i < 2} />
-              : <ShopCard shop={s} isSaved={saved.has(s.id)} actions={actions} t={t} eager={i < 2} />}
+          <ShopCell key={s.id} index={i} className="w-[46%] flex-shrink-0 snap-start sm:w-64">
+            <ShopCard shop={s} isSaved={saved.has(s.id)} actions={actions} t={t} eager={i < 2} />
           </ShopCell>
         ))}
       </div>
@@ -803,9 +750,53 @@ const CategoryRail = memo(({ types, countsByType, selected, onToggle, onAll, all
   </nav>
 ));
 
+const Pagination = memo(({ page, total, onChange, t }) => {
+  const pages = useMemo(() => buildPages(page, total), [page, total]);
+  if (total <= 1) return null;
+  return (
+    <nav aria-label={t('pagination')} className="mt-8 flex flex-col items-center gap-3">
+      <ul className="flex flex-wrap items-center justify-center gap-2">
+        <li>
+          <button
+            type="button" onClick={() => onChange(page - 1)} disabled={page <= 1}
+            aria-label={t('prevPage')} title={t('prevPage')} className={`${BTN_SECONDARY} h-10 min-w-10 px-3 text-xs`}
+          >
+            <FiChevronLeft aria-hidden="true" className="h-4 w-4 rtl:rotate-180" />
+            <span className="hidden sm:inline">{t('prev')}</span>
+          </button>
+        </li>
+        {pages.map((p) => (typeof p === 'number' ? (
+          <li key={p}>
+            <button
+              type="button" onClick={() => onChange(p)} aria-label={`${t('goToPage')} ${p}`} aria-current={p === page ? 'page' : undefined}
+              className={`${p === page ? BTN_ON : BTN_SECONDARY} h-10 min-w-10 px-3 text-xs tabular-nums`}
+            >
+              <span dir="ltr">{p}</span>
+            </button>
+          </li>
+        ) : (
+          <li key={p} aria-hidden="true" className="px-1 text-sm font-extrabold text-[color:var(--mu)]">…</li>
+        )))}
+        <li>
+          <button
+            type="button" onClick={() => onChange(page + 1)} disabled={page >= total}
+            aria-label={t('nextPage')} title={t('nextPage')} className={`${BTN_SECONDARY} h-10 min-w-10 px-3 text-xs`}
+          >
+            <span className="hidden sm:inline">{t('next')}</span>
+            <FiChevronRight aria-hidden="true" className="h-4 w-4 rtl:rotate-180" />
+          </button>
+        </li>
+      </ul>
+      <p role="status" aria-live="polite" className="text-xs font-semibold text-[color:var(--mu)]">
+        <span dir="ltr">{t('pageOf', { page, total })}</span>
+      </p>
+    </nav>
+  );
+});
+
 const FilterGroup = memo(({ title, children }) => (
-  <fieldset className="nb-line min-w-0 border-b-2 py-4 first:pt-0 last:border-b-0 last:pb-0">
-    <legend className="mb-3 text-sm font-bold">{title}</legend>
+  <fieldset className="min-w-0 border-b-2 border-[color:var(--bd)] py-4 first:pt-0 last:border-b-0 last:pb-0">
+    <legend className="mb-3 text-sm font-extrabold">{title}</legend>
     <div className="flex flex-col gap-1.5">{children}</div>
   </fieldset>
 ));
@@ -815,15 +806,15 @@ const FilterOption = memo(({ active, label, count, onClick, radio = false }) => 
   return (
     <button
       type="button" role={radio ? 'radio' : 'checkbox'} aria-checked={active} disabled={disabled} onClick={onClick}
-      className={`nb-opt nb-focus flex min-h-10 w-full cursor-pointer items-center gap-2 border-2 px-3 text-start text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${
-        active ? 'nb-bd bg-[color:var(--nb-btn)] text-[color:var(--nb-on)]' : 'border-transparent hover:bg-[color:var(--nb-gray)]'
+      className={`flex min-h-10 w-full cursor-pointer items-center gap-2 rounded-lg border-2 px-3 text-start text-sm font-semibold transition-colors motion-reduce:transition-none ${FOCUS} disabled:cursor-not-allowed disabled:opacity-40 ${
+        active ? 'border-black bg-[#39ff88] font-extrabold text-emerald-950' : 'border-transparent hover:bg-[color:var(--sf2)]'
       }`}
     >
-      <span aria-hidden="true" className={`nb-bd inline-flex h-4 w-4 flex-shrink-0 items-center justify-center border-2 ${radio ? 'rounded-full' : 'rounded-md'}`}>
+      <span aria-hidden="true" className={`inline-flex h-4 w-4 flex-shrink-0 items-center justify-center border-2 border-current ${radio ? 'rounded-full' : 'rounded-md'}`}>
         {active && <FiCheck className="h-3 w-3" strokeWidth={4} />}
       </span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
-      {count !== undefined && <span dir="ltr" className={`text-xs tabular-nums ${active ? 'opacity-80' : 'nb-muted'}`}>{count}</span>}
+      {count !== undefined && <span dir="ltr" className={`text-xs tabular-nums ${active ? 'opacity-80' : 'text-[color:var(--mu)]'}`}>{count}</span>}
     </button>
   );
 });
@@ -849,9 +840,9 @@ const FilterPanel = memo((p) => {
 
       <FilterGroup title={t('shopType')}>
         {shopTypes.length === 0
-          ? <p className="nb-muted text-sm">{t('noTypes')}</p>
+          ? <p className="text-sm text-[color:var(--mu)]">{t('noTypes')}</p>
           : (
-            <div className="flex max-h-52 min-w-0 flex-col gap-1.5 overflow-y-auto overscroll-contain">
+            <div className="sh-scroll flex max-h-52 min-w-0 flex-col gap-1.5 overflow-y-auto">
               {shopTypes.map((ty) => <FilterOption key={ty} label={ty} count={countsByType[ty] || 0} active={selectedShopTypes.includes(ty)} onClick={() => toggleShopType(ty)} />)}
             </div>
           )}
@@ -859,7 +850,7 @@ const FilterPanel = memo((p) => {
 
       {cities.length > 0 && (
         <FilterGroup title={t('city')}>
-          <div className="flex max-h-40 min-w-0 flex-col gap-1.5 overflow-y-auto overscroll-contain">
+          <div className="sh-scroll flex max-h-40 min-w-0 flex-col gap-1.5 overflow-y-auto">
             {cities.map((c) => <FilterOption key={c} label={c} active={selectedCities.includes(c)} onClick={() => toggleCity(c)} />)}
           </div>
         </FilterGroup>
@@ -894,18 +885,18 @@ const FilterDrawer = memo(({ onClose, onApply, t, total, onClear, hasFilters, ch
   const apply = useCallback(() => { requestClose(); onApply(); }, [requestClose, onApply]);
   return (
     <div className="fixed inset-0 z-[1100]" role="dialog" aria-modal="true" aria-label={t('filters')}>
-      <div className={`${leaving ? 'sh-fade-out' : 'sh-fade'} absolute inset-0 bg-[color:var(--nb-scrim)]`} onClick={requestClose} aria-hidden="true" />
-      <div className={`nb-card nb-big ${leaving ? 'sh-drawer-out' : 'sh-drawer'} absolute inset-y-0 start-0 flex w-[min(20rem,88vw)] flex-col !rounded-none`}>
-        <div className="nb-gray nb-line flex items-center justify-between border-b-2 p-4">
-          <h2 className="text-base font-bold">{t('filters')}</h2>
-          <button type="button" onClick={requestClose} aria-label={t('closeFilters')} className="nb-btn nb-focus h-9 w-9">
+      <div className={`${leaving ? 'sh-fade-out' : 'sh-fade'} absolute inset-0 bg-[color:var(--scrim)]`} onClick={requestClose} aria-hidden="true" />
+      <div className={`${CARD} ${leaving ? 'sh-drawer-out' : 'sh-drawer'} absolute inset-y-0 start-0 flex w-[min(20rem,88vw)] flex-col !rounded-none`}>
+        <div className="flex items-center justify-between border-b-[3px] border-[color:var(--ln)] bg-[color:var(--sf2)] p-4">
+          <h2 className="text-base font-extrabold">{t('filters')}</h2>
+          <button type="button" onClick={requestClose} aria-label={t('closeFilters')} className={`${BTN_SECONDARY} h-9 w-9`}>
             <FiX aria-hidden="true" className="h-4 w-4" />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto overscroll-contain p-4">{children}</div>
-        <div className="nb-line flex gap-3 border-t-2 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          {hasFilters && <button type="button" onClick={onClear} className="nb-btn nb-focus min-h-11 flex-1 text-xs">{t('clearAll')}</button>}
-          <button type="button" onClick={apply} className="nb-btn nb-btn-a nb-focus min-h-11 flex-[2] text-xs">
+        <div className="sh-scroll flex-1 overflow-y-auto p-4">{children}</div>
+        <div className="flex gap-3 border-t-[3px] border-[color:var(--ln)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          {hasFilters && <button type="button" onClick={onClear} className={`${BTN_SECONDARY} min-h-11 flex-1 text-xs`}>{t('clearAll')}</button>}
+          <button type="button" onClick={apply} className={`${BTN_PRIMARY} min-h-11 flex-[2] text-xs`}>
             {t('showShops', { count: total })}
           </button>
         </div>
@@ -960,10 +951,10 @@ const SortDropdown = memo(({ value, onChange, options, label }) => {
       <button
         ref={btnRef} type="button" onClick={toggle} onKeyDown={onButtonKey}
         aria-haspopup="listbox" aria-expanded={open} aria-controls={`${id}-list`} aria-label={`${label}: ${current}`}
-        className="nb-field nb-focus flex h-11 min-w-[9rem] cursor-pointer items-center justify-between gap-2 px-4 text-sm font-semibold"
+        className={`${FIELD} ${PRESS} ${FOCUS} flex h-11 min-w-[9rem] cursor-pointer items-center justify-between gap-2 px-4 text-sm font-bold hover:bg-[color:var(--sf2)]`}
       >
         <span className="flex min-w-0 items-center gap-1.5">
-          <span className="nb-muted hidden sm:inline">{label}:</span>
+          <span className="hidden text-[color:var(--mu)] sm:inline">{label}:</span>
           <span className="truncate">{current}</span>
         </span>
         <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform duration-150 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
@@ -972,7 +963,7 @@ const SortDropdown = memo(({ value, onChange, options, label }) => {
         <ul
           ref={listRef} id={`${id}-list`} role="listbox" tabIndex={-1} aria-label={label}
           aria-activedescendant={`${id}-opt-${active}`} onKeyDown={onListKey}
-          className="nb-card sh-pop absolute end-0 z-30 mt-3 w-56 max-w-[calc(100vw-2rem)] overflow-hidden p-1 outline-none"
+          className={`${CARD} sh-pop absolute end-0 z-30 mt-3 w-56 max-w-[calc(100vw-2rem)] overflow-hidden p-1 outline-none`}
         >
           {options.map(([k, text], i) => {
             const isSel = k === value;
@@ -980,12 +971,12 @@ const SortDropdown = memo(({ value, onChange, options, label }) => {
               <li
                 key={k} id={`${id}-opt-${i}`} role="option" aria-selected={isSel}
                 onMouseEnter={() => setActive(i)} onClick={() => choose(i)}
-                className={`nb-opt flex min-h-10 cursor-pointer items-center gap-2 px-3 text-sm ${
-                  isSel ? 'bg-[color:var(--nb-btn)] font-bold text-[color:var(--nb-on)]' : i === active ? 'nb-gray font-semibold' : 'font-semibold'
+                className={`flex min-h-10 cursor-pointer items-center gap-2 rounded-lg px-3 text-sm ${
+                  isSel ? 'bg-[#39ff88] font-extrabold text-emerald-950' : i === active ? 'bg-[color:var(--sf2)] font-bold' : 'font-semibold'
                 }`}
               >
                 <span className="min-w-0 flex-1 truncate">{text}</span>
-                {isSel && <FiCheck aria-hidden="true" className="h-4 w-4 flex-shrink-0" strokeWidth={4} />}
+                {isSel && <FiCheck aria-hidden="true" className="h-4 w-4 flex-shrink-0" strokeWidth={3} />}
               </li>
             );
           })}
@@ -995,38 +986,8 @@ const SortDropdown = memo(({ value, onChange, options, label }) => {
   );
 });
 
-const InfiniteSentinel = memo(({ hasMore, shown, total, onMore, t }) => {
-  const ref = useRef(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || !hasMore) return undefined;
-    if (typeof IntersectionObserver === 'undefined') { onMore(); return undefined; }
-    const io = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) onMore(); }, { rootMargin: '700px 0px' });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [hasMore, shown, onMore]);
-  return (
-    <div ref={ref} role="status" aria-live="polite" className="flex min-h-[4rem] items-center justify-center gap-3 pt-10">
-      {hasMore ? (
-        <>
-          <span aria-hidden="true" className="flex items-center gap-1.5">
-            <span className="sh-dot nb-bd h-3 w-3 rounded-full border-2 bg-[color:var(--nb-btn)]" />
-            <span className="sh-dot nb-bd h-3 w-3 rounded-full border-2 bg-[color:var(--nb-btn)]" />
-            <span className="sh-dot nb-bd h-3 w-3 rounded-full border-2 bg-[color:var(--nb-btn)]" />
-          </span>
-          <span className="text-xs font-bold">{t('loadingMore')}</span>
-        </>
-      ) : total > BATCH ? (
-        <p className="sh-pop flex items-center justify-center gap-1.5 text-xs font-bold">
-          <FiCheck aria-hidden="true" className="nb-ic h-3.5 w-3.5" strokeWidth={4} />{t('endOfList')}
-        </p>
-      ) : null}
-    </div>
-  );
-});
-
 const InfoRow = memo(({ Icon, children }) => (
-  <div className="nb-gray nb-line flex items-start gap-3 rounded-2xl border-2 p-3">
+  <div className="flex items-start gap-3 rounded-2xl border-2 border-[color:var(--ln)] bg-[color:var(--sf2)] p-3">
     <IconTile Icon={Icon} className="h-9 w-9" iconClassName="h-4 w-4" />
     <div className="min-w-0 flex-1 self-center break-words text-sm font-bold">{children}</div>
   </div>
@@ -1038,11 +999,11 @@ const ShopStats = memo(({ shop, t }) => {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-semibold">
       <span className="inline-flex items-center gap-1.5">
-        <FiMessageSquare aria-hidden="true" className="nb-ic h-3.5 w-3.5" />
+        <FiMessageSquare aria-hidden="true" className="h-3.5 w-3.5 text-[color:var(--acc)]" />
         <span dir="ltr" className="tabular-nums">{plus(reviews)}</span> {reviews === 1 ? t('reviewOne') : t('reviewMany')}
       </span>
       <span className="inline-flex items-center gap-1.5">
-        <FiPackage aria-hidden="true" className="nb-ic h-3.5 w-3.5" />
+        <FiPackage aria-hidden="true" className="h-3.5 w-3.5 text-[color:var(--acc)]" />
         <span dir="ltr" className="tabular-nums">{plus(products)}</span> {products === 1 ? t('productOne') : t('productMany')}
       </span>
     </div>
@@ -1076,26 +1037,26 @@ const DirectionsModal = memo(({ shop, onClose, t }) => {
 
   return (
     <div className="fixed inset-0 z-[1100] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={`${t('directionsTo')} ${name}`}>
-      <div className={`${leaving ? 'sh-fade-out' : 'sh-fade'} absolute inset-0 bg-[color:var(--nb-scrim)]`} onClick={close} aria-hidden="true" />
-      <div className={`nb-card nb-big ${leaving ? 'sh-modal-out' : 'sh-modal'} relative flex max-h-[94vh] w-full flex-col overflow-hidden sm:max-w-2xl`}>
-        <header className="nb-gray nb-line flex flex-shrink-0 items-center gap-3 border-b-2 px-4 py-3.5 sm:px-5">
+      <div className={`${leaving ? 'sh-fade-out' : 'sh-fade'} absolute inset-0 bg-[color:var(--scrim)]`} onClick={close} aria-hidden="true" />
+      <div className={`${CARD} ${leaving ? 'sh-modal-out' : 'sh-modal'} relative flex max-h-[94vh] w-full flex-col overflow-hidden sm:max-w-2xl`}>
+        <header className="flex flex-shrink-0 items-center gap-3 border-b-[3px] border-[color:var(--ln)] bg-[color:var(--sf2)] px-4 py-3.5 sm:px-5">
           <IconTile Icon={FiNavigation} className="h-10 w-10" iconClassName="h-5 w-5" />
           <div className="min-w-0 flex-1">
-            <p className="nb-muted text-[11px] font-semibold">{t('directionsTo')}</p>
-            <h2 className="line-clamp-1 text-base font-bold">{name}</h2>
-            <p className="nb-muted line-clamp-1 text-xs">{address || t('noAddress')}</p>
+            <p className="text-[11px] font-semibold text-[color:var(--mu)]">{t('directionsTo')}</p>
+            <h2 className="line-clamp-1 text-base font-extrabold">{name}</h2>
+            <p className="line-clamp-1 text-xs text-[color:var(--mu)]">{address || t('noAddress')}</p>
           </div>
-          <button type="button" onClick={close} aria-label={t('close')} className="nb-btn nb-focus h-9 w-9 flex-shrink-0">
+          <button type="button" onClick={close} aria-label={t('close')} className={`${BTN_SECONDARY} h-9 w-9 flex-shrink-0`}>
             <FiX aria-hidden="true" className="h-4 w-4" />
           </button>
         </header>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4 sm:p-5">
-          <Suspense fallback={<div className="nb-sk w-full" style={{ aspectRatio: isMobile ? '1 / 1' : '1 / 0.62' }} />}>
+        <div className="sh-scroll min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
+          <Suspense fallback={<div className={`${SK} w-full`} style={{ aspectRatio: isMobile ? '1 / 1' : '1 / 0.62' }} />}>
             <DeliveryMap
               items={items} selectedId={origin ? shop.id : null} onSelect={noop} aspect={isMobile ? 1 : 0.62}
               startLabel={t('yourLocation')} endLabel={name}
-              className="nb-bd !rounded-2xl !border-[3px]"
+              className="!rounded-2xl !border-[3px] !border-[color:var(--ln)]"
             />
           </Suspense>
 
@@ -1111,12 +1072,12 @@ const DirectionsModal = memo(({ shop, onClose, t }) => {
             </div>
             <div className="flex flex-wrap items-center gap-3">
               {status === 'denied' && (
-                <button type="button" onClick={locate} className="nb-btn nb-focus min-h-10 px-4 text-xs">
+                <button type="button" onClick={locate} className={`${BTN_SECONDARY} min-h-10 px-4 text-xs`}>
                   <FiRefreshCw className="h-4 w-4" aria-hidden="true" />{t('retryLocation')}
                 </button>
               )}
               {mapsHref && (
-                <a href={mapsHref} target="_blank" rel="noopener noreferrer nofollow" className="nb-btn nb-btn-a nb-focus min-h-10 px-4 text-xs">
+                <a href={mapsHref} target="_blank" rel="noopener noreferrer nofollow" className={`${BTN_PRIMARY} min-h-10 px-4 text-xs`}>
                   <FiExternalLink className="h-4 w-4" aria-hidden="true" />{t('openInMaps')}
                 </a>
               )}
@@ -1140,28 +1101,28 @@ const ShopDetailsModal = memo(({ shop, onClose, onOpen, onDirections, t }) => {
 
   return (
     <div className="fixed inset-0 z-[1100] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={shop.name || t('unnamedShop')}>
-      <div className={`${leaving ? 'sh-fade-out' : 'sh-fade'} absolute inset-0 bg-[color:var(--nb-scrim)]`} onClick={close} aria-hidden="true" />
-      <div className={`nb-card nb-big ${leaving ? 'sh-modal-out' : 'sh-modal'} relative flex max-h-[92vh] w-full flex-col overflow-hidden sm:max-w-md`}>
-        <div className="nb-media nb-bd relative h-44 w-full flex-shrink-0 overflow-hidden border-b-[3px] sm:h-52">
+      <div className={`${leaving ? 'sh-fade-out' : 'sh-fade'} absolute inset-0 bg-[color:var(--scrim)]`} onClick={close} aria-hidden="true" />
+      <div className={`${CARD} ${leaving ? 'sh-modal-out' : 'sh-modal'} relative flex max-h-[92vh] w-full flex-col overflow-hidden sm:max-w-md`}>
+        <div className="relative h-44 w-full flex-shrink-0 overflow-hidden border-b-[3px] border-[color:var(--ln)] bg-[color:var(--sf)] sm:h-52">
           <ShopImage src={logo} name={shop.name} role={role} eager />
           <div className="absolute end-3 top-3 z-10 flex items-center gap-2">
-            <button type="button" onClick={() => onDirections(shop)} aria-label={t('getDirections')} title={t('getDirections')} className="nb-btn nb-focus h-9 w-9">
+            <button type="button" onClick={() => onDirections(shop)} aria-label={t('getDirections')} title={t('getDirections')} className={`${BTN_SECONDARY} h-9 w-9`}>
               <FiNavigation aria-hidden="true" className="h-4 w-4" />
             </button>
-            <button type="button" onClick={close} aria-label={t('close')} className="nb-btn nb-focus h-9 w-9">
+            <button type="button" onClick={close} aria-label={t('close')} className={`${BTN_SECONDARY} h-9 w-9`}>
               <FiX aria-hidden="true" className="h-4 w-4" />
             </button>
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain p-4 sm:p-5">
+        <div className="sh-scroll min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-5">
           <div>
-            <h2 className="flex items-center gap-2 text-lg font-bold leading-snug">
+            <h2 className="flex items-center gap-2 text-lg font-extrabold leading-snug">
               <span className="line-clamp-2 min-w-0">{shop.name || t('unnamedShop')}</span>
               {shop.verified && <VerifiedMark t={t} />}
             </h2>
             <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-bold">
-              <span className="nb-ic">{serviceLabel(role, t)}</span>
+              <span className="text-[color:var(--acc)]">{serviceLabel(role, t)}</span>
               {hasRating && (
                 <span className="inline-flex items-center gap-1">
                   <RiStarFill className="h-3.5 w-3.5 text-amber-400" aria-hidden="true" /><span dir="ltr" className="tabular-nums">{shop.rating.toFixed(1)}</span>
@@ -1172,19 +1133,19 @@ const ShopDetailsModal = memo(({ shop, onClose, onOpen, onDirections, t }) => {
           </div>
 
           <section>
-            <h3 className="mb-2 text-sm font-bold">{t('about')}</h3>
-            <p className="nb-muted text-sm leading-relaxed">{shop.description || t('noDescription')}</p>
+            <h3 className="mb-2 text-sm font-extrabold">{t('about')}</h3>
+            <p className="text-sm leading-relaxed text-[color:var(--mu)]">{shop.description || t('noDescription')}</p>
           </section>
 
           <section>
-            <h3 className="mb-3 text-sm font-bold">{t('whatShopCanDo')}</h3>
+            <h3 className="mb-3 text-sm font-extrabold">{t('whatShopCanDo')}</h3>
             <ul className="grid gap-3">
               {caps.map(({ icon: Icon, titleKey, textKey }) => (
                 <li key={titleKey} className="flex items-start gap-3">
                   <IconTile Icon={Icon} className="h-10 w-10" iconClassName="h-4 w-4" />
                   <div className="min-w-0">
-                    <p className="text-sm font-bold">{t(titleKey)}</p>
-                    <p className="nb-muted text-xs">{t(textKey)}</p>
+                    <p className="text-sm font-extrabold">{t(titleKey)}</p>
+                    <p className="text-xs text-[color:var(--mu)]">{t(textKey)}</p>
                   </div>
                 </li>
               ))}
@@ -1196,15 +1157,15 @@ const ShopDetailsModal = memo(({ shop, onClose, onOpen, onDirections, t }) => {
             <InfoRow Icon={FiMapPin}>{address || t('noAddress')}</InfoRow>
             {tel && (
               <InfoRow Icon={FiPhone}>
-                <a href={tel} dir="ltr" className="nb-focus hover:underline">{shop.phone}</a>
+                <a href={tel} dir="ltr" className={TEXT_LINK}>{shop.phone}</a>
               </InfoRow>
             )}
           </section>
         </div>
 
-        <footer className="nb-line grid flex-shrink-0 grid-cols-2 gap-3 border-t-2 px-4 py-3.5 sm:px-5">
-          <button type="button" onClick={close} className="nb-btn nb-focus min-h-11 px-4 text-xs">{t('close')}</button>
-          <button type="button" onClick={() => onOpen(shop.id)} className="nb-btn nb-btn-a nb-focus min-h-11 px-4 text-xs">
+        <footer className="grid flex-shrink-0 grid-cols-2 gap-3 border-t-[3px] border-[color:var(--ln)] px-4 py-3.5 sm:px-5">
+          <button type="button" onClick={close} className={`${BTN_SECONDARY} min-h-11 px-4 text-xs`}>{t('close')}</button>
+          <button type="button" onClick={() => onOpen(shop.id)} className={`${BTN_PRIMARY} min-h-11 px-4 text-xs`}>
             <RiStoreLine className="h-4 w-4" aria-hidden="true" />{t('visitShop')}
           </button>
         </footer>
@@ -1224,7 +1185,7 @@ const ShopsContent = memo(({ darkMode }) => {
   const [saved, toggleSaved] = useSavedShops();
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDeferredValue(searchTerm);
-  const [visibleCount, setVisibleCount] = useState(BATCH);
+  const [page, setPage] = useState(1);
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [selectedShopTypes, setSelectedShopTypes] = useState([]);
   const [selectedCities, setSelectedCities] = useState([]);
@@ -1325,16 +1286,24 @@ const ShopsContent = memo(({ darkMode }) => {
   }, [shops, searchIndex, saved, deferredSearch, roleFilter, selectedShopTypes, selectedCities, minRating, showVerifiedOnly, savedOnly, ratedOnly, hasPhoneOnly, hasAddressOnly, sortBy, language]);
 
   useEffect(() => {
-    setVisibleCount(BATCH);
+    setPage(1);
   }, [deferredSearch, roleFilter, selectedShopTypes, selectedCities, minRating, showVerifiedOnly, savedOnly, ratedOnly, hasPhoneOnly, hasAddressOnly, sortBy]);
 
-  const visibleShops = useMemo(() => filteredShops.slice(0, visibleCount), [filteredShops, visibleCount]);
-  const hasMore = visibleCount < filteredShops.length;
+  const totalPages = Math.max(1, Math.ceil(filteredShops.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const visibleShops = useMemo(
+    () => filteredShops.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filteredShops, currentPage],
+  );
 
-  const loadMore = useCallback(() => startTransition(() => setVisibleCount((c) => c + BATCH)), []);
   const scrollToGrid = useCallback(() => {
     requestAnimationFrame(() => requestAnimationFrame(() => scrollToEl(gridRef.current)));
   }, []);
+  const goToPage = useCallback((p) => {
+    const next = Math.min(totalPages, Math.max(1, Math.floor(Number(p)) || 1));
+    startTransition(() => setPage(next));
+    scrollToGrid();
+  }, [totalPages, scrollToGrid]);
   const scrollToTop = useCallback(() => {
     window.scrollTo({ top: 0, behavior: prefersReduced() ? 'auto' : 'smooth' });
   }, []);
@@ -1348,7 +1317,7 @@ const ShopsContent = memo(({ darkMode }) => {
   const clearFilters = useCallback(() => {
     setSearchTerm(''); setRoleFilter('ALL'); setSelectedShopTypes([]); setSelectedCities([]); setMinRating(0);
     setShowVerifiedOnly(false); setSavedOnly(false); setRatedOnly(false); setHasPhoneOnly(false); setHasAddressOnly(false);
-    setSortBy('relevance'); setVisibleCount(BATCH);
+    setSortBy('relevance'); setPage(1);
   }, []);
   const onSearch = useCallback((e) => setSearchTerm(stripControl(e.target.value).slice(0, QUERY_MAX)), []);
   const openDetails = useCallback((shop) => setDetailsShop(shop), []);
@@ -1374,7 +1343,7 @@ const ShopsContent = memo(({ darkMode }) => {
 
   const activeFiltersCount = (searchTerm ? 1 : 0) + (roleFilter !== 'ALL' ? 1 : 0) + selectedShopTypes.length + selectedCities.length
     + (minRating > 0 ? 1 : 0) + (showVerifiedOnly ? 1 : 0) + (savedOnly ? 1 : 0) + (ratedOnly ? 1 : 0) + (hasPhoneOnly ? 1 : 0) + (hasAddressOnly ? 1 : 0);
-  const browsing = activeFiltersCount === 0 && sortBy === 'relevance';
+  const browsing = activeFiltersCount === 0 && sortBy === 'relevance' && currentPage === 1;
 
   const sortOptions = useMemo(() => [
     ['relevance', t('sortRelevance')],
@@ -1403,45 +1372,44 @@ const ShopsContent = memo(({ darkMode }) => {
 
   return (
     <DarkCtx.Provider value={Boolean(darkMode)}>
-      <div dir={languageDirection(language)} lang={language} className={`nb ${darkMode ? 'nb-dark' : ''} min-h-screen overflow-x-clip`}>
+      <div dir={languageDirection(language)} lang={language} className={`sh min-h-screen [overflow-x:clip] ${darkMode ? 'sh-dark' : 'sh-light'}`}>
         <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-[1200] h-1">
-          <div ref={barRef} className="h-full origin-left bg-[color:var(--nb-btn)] rtl:origin-right" style={{ transform: 'scaleX(0)' }} />
+          <div ref={barRef} className="h-full origin-left bg-[#39ff88] rtl:origin-right" style={{ transform: 'scaleX(0)' }} />
         </div>
 
-        <main className="mx-auto max-w-[88rem] px-4 pb-14 pt-32 sm:px-6 lg:px-8" aria-busy={isLoading || isPending}>
-          <header className="nb-rise mb-10" style={RISE[0]}>
+        <main className="mx-auto max-w-[88rem] px-4 pb-16 pt-36 sm:px-6 md:pt-32 lg:px-8" aria-busy={isLoading || isPending}>
+          <header className="mb-8">
             <Crumbs t={t} />
             <div className="mt-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
-              <div className="min-w-0 max-w-2xl">
-                <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">{t('pageTitle')}</h1>
-                <p className="nb-muted mt-3 text-sm leading-relaxed sm:text-base">{t('pageSub')}</p>
-              </div>
+              <h1 className="min-w-0 text-2xl font-extrabold leading-tight tracking-tight rtl:tracking-normal sm:text-3xl">{t('pageTitle')}</h1>
               {isLoading ? (
                 <div aria-hidden="true" className="flex gap-2"><Sk className="h-8 w-28" /><Sk className="h-8 w-24" /></div>
               ) : hasShops && (
-                <div className="nb-in flex flex-wrap gap-3 text-xs font-bold">
-                  <span className="nb-chip px-3 py-1.5"><span dir="ltr" className="tabular-nums">{shops.length}</span>&nbsp;{t('allShops')}</span>
+                <div className="sh-in flex flex-wrap gap-3 text-xs font-extrabold">
+                  <span className={`rounded-full px-3 py-1.5 ${CHIP}`}><span dir="ltr" className="tabular-nums">{shops.length}</span>&nbsp;{t('allShops')}</span>
                   {verifiedCount > 0 && (
-                    <span className="nb-chip nb-chip-warn px-3 py-1.5"><span dir="ltr" className="tabular-nums">{verifiedCount}</span>&nbsp;{t('verified')}</span>
+                    <span className="rounded-full border-2 border-black bg-amber-300 px-3 py-1.5 text-black"><span dir="ltr" className="tabular-nums">{verifiedCount}</span>&nbsp;{t('verified')}</span>
                   )}
                 </div>
               )}
             </div>
           </header>
 
-          <div className={`nb-rise grid gap-8 ${showSidebar ? 'lg:grid-cols-[16rem_minmax(0,1fr)]' : ''}`} style={RISE[1]}>
+          <div className={`grid items-start gap-8 ${showSidebar ? 'lg:grid-cols-[17rem_minmax(0,1fr)] xl:gap-10' : ''}`}>
             {showSidebar && (
               <aside className="self-start lg:sticky lg:top-28" aria-label={t('filters')}>
                 {isLoading ? <FilterSkeleton /> : (
-                  <div className="nb-card nb-in max-h-[calc(100vh-8rem)] overflow-y-auto overscroll-contain p-4">
-                    <div className="mb-4 flex items-center justify-between gap-2">
-                      <h2 className="text-base font-bold">{t('filters')}</h2>
+                  <section className={`sh-scroll sh-in max-h-[calc(100vh-8rem)] overflow-y-auto p-4 ${CARD}`}>
+                    <div className="mb-4 flex items-center justify-between gap-2 border-b-2 border-[color:var(--bd)] pb-3">
+                      <h2 className="flex items-center gap-2 text-base font-extrabold">
+                        <FiSliders aria-hidden="true" className="h-4 w-4 text-[color:var(--acc)]" />{t('filters')}
+                      </h2>
                       {activeFiltersCount > 0 && (
-                        <button type="button" onClick={clearFilters} className="nb-ic nb-focus rounded-md text-xs font-bold transition-opacity hover:opacity-80">{t('resetAll')}</button>
+                        <button type="button" onClick={clearFilters} className={`${TEXT_LINK} text-xs font-extrabold text-[color:var(--acc)]`}>{t('resetAll')}</button>
                       )}
                     </div>
                     {panel}
-                  </div>
+                  </section>
                 )}
               </aside>
             )}
@@ -1456,26 +1424,26 @@ const ShopsContent = memo(({ darkMode }) => {
 
               {showTools && (
                 <>
-                  <div className="nb-in mb-4 flex flex-wrap items-center gap-3">
-                    <div className="nb-field relative flex h-11 min-w-0 flex-1 basis-60 items-center gap-2 px-4" role="search">
-                      <FiSearch aria-hidden="true" className="nb-ic h-4 w-4 flex-shrink-0" />
+                  <div className="sh-in mb-4 flex flex-wrap items-center gap-3">
+                    <div className={`${FIELD} sh-field relative flex h-11 min-w-0 flex-1 basis-60 items-center gap-2 px-4`} role="search">
+                      <FiSearch aria-hidden="true" className="h-4 w-4 flex-shrink-0 text-[color:var(--acc)]" />
                       <input
                         type="search" value={searchTerm} onChange={onSearch} placeholder={t('search')} aria-label={t('searchAria')}
                         maxLength={QUERY_MAX} autoComplete="off" spellCheck={false} enterKeyHint="search"
-                        className="min-w-0 flex-1 bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:opacity-70 sm:text-sm"
+                        className="min-w-0 flex-1 bg-transparent text-base font-semibold outline-none placeholder:font-normal sm:text-sm"
                       />
                       {searchTerm && (
-                        <button type="button" onClick={() => setSearchTerm('')} aria-label={t('clearSearch')} className="nb-focus flex h-7 w-7 flex-shrink-0 cursor-pointer items-center justify-center rounded-full">
+                        <button type="button" onClick={() => setSearchTerm('')} aria-label={t('clearSearch')} className={`flex h-7 w-7 flex-shrink-0 cursor-pointer items-center justify-center rounded-full ${FOCUS}`}>
                           <FiX aria-hidden="true" className="h-4 w-4" />
                         </button>
                       )}
                     </div>
                     <SortDropdown value={sortBy} onChange={setSortBy} options={sortOptions} label={t('sortBy')} />
                     {showFilterButton && (
-                      <button type="button" onClick={openDrawer} aria-haspopup="dialog" className="nb-btn nb-focus h-11 flex-shrink-0 gap-2 px-4 text-xs">
+                      <button type="button" onClick={openDrawer} aria-haspopup="dialog" className={`${BTN_SECONDARY} h-11 flex-shrink-0 px-4 text-xs`}>
                         <FiSliders aria-hidden="true" className="h-4 w-4" />{t('filters')}
                         {activeFiltersCount > 0 && (
-                          <span dir="ltr" className="nb-chip sh-pop h-5 min-w-[1.25rem] px-1 text-[11px] font-bold tabular-nums !shadow-none">{activeFiltersCount}</span>
+                          <span dir="ltr" className={`sh-pop inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-md px-1 text-[11px] font-extrabold tabular-nums ${CHIP}`}>{activeFiltersCount}</span>
                         )}
                       </button>
                     )}
@@ -1510,7 +1478,7 @@ const ShopsContent = memo(({ darkMode }) => {
 
                     {browsing && topRated.length > 0 && (
                       <Carousel
-                        featured title={t('customerFavorites')} subtitle={t('topRatedSubtitle')} onViewAll={viewAllTop} viewAllLabel={t('viewAll')}
+                        title={t('customerFavorites')} subtitle={t('topRatedSubtitle')} onViewAll={viewAllTop} viewAllLabel={t('viewAll')}
                         shops={topRated} saved={saved} actions={actions} t={t}
                       />
                     )}
@@ -1525,13 +1493,13 @@ const ShopsContent = memo(({ darkMode }) => {
                     <section aria-label={t('allShopsTitle')} className="pt-2">
                       <div id="shop-results" ref={gridRef} className="mb-5 flex scroll-mt-28 flex-wrap items-end justify-between gap-3">
                         <div className="min-w-0">
-                          <h2 className="text-xl font-bold tracking-tight sm:text-2xl">{t('allShopsTitle')}</h2>
-                          <p role="status" className="nb-muted mt-1.5 text-sm">
-                            <b dir="ltr" className="font-bold tabular-nums text-[color:var(--nb-ink)]">{filteredShops.length}</b> {t('shopsFound')}
+                          <h2 className="text-xl font-extrabold tracking-tight rtl:tracking-normal sm:text-2xl">{t('allShopsTitle')}</h2>
+                          <p role="status" className="mt-1.5 text-sm font-medium text-[color:var(--mu)]">
+                            <b dir="ltr" className="font-extrabold tabular-nums text-[color:var(--tx)]">{filteredShops.length}</b> {t('shopsFound')}
                           </p>
                         </div>
                         {activeFiltersCount > 0 && (
-                          <button type="button" onClick={clearFilters} className="nb-ic nb-focus rounded-md text-sm font-bold transition-opacity hover:opacity-80">{t('clearAll')}</button>
+                          <button type="button" onClick={clearFilters} className={`${TEXT_LINK} text-sm font-extrabold text-[color:var(--acc)]`}>{t('clearAll')}</button>
                         )}
                       </div>
 
@@ -1546,14 +1514,14 @@ const ShopsContent = memo(({ darkMode }) => {
                         <StateBox label={t('noMatch')} hint={t('tryRemoveFilter')} onAction={clearFilters} actionLabel={t('clearFilters')} />
                       ) : (
                         <>
-                          <div className={`${GRID} sh-lazy`}>
+                          <div key={currentPage} className={GRID}>
                             {visibleShops.map((s, i) => (
-                              <ShopCell key={s.id} index={i % BATCH}>
+                              <ShopCell key={s.id} index={i}>
                                 <ShopCard shop={s} isSaved={saved.has(s.id)} actions={actions} t={t} eager={i < 4} />
                               </ShopCell>
                             ))}
                           </div>
-                          <InfiniteSentinel hasMore={hasMore} shown={visibleCount} total={filteredShops.length} onMore={loadMore} t={t} />
+                          <Pagination page={currentPage} total={totalPages} onChange={goToPage} t={t} />
                         </>
                       )}
                     </section>
@@ -1566,7 +1534,7 @@ const ShopsContent = memo(({ darkMode }) => {
 
         {showTop && (
           <div className="sh-pop fixed bottom-5 end-5 z-40">
-            <button type="button" onClick={scrollToTop} aria-label={t('backToTop')} title={t('backToTop')} className="nb-btn nb-btn-a nb-focus h-12 w-12">
+            <button type="button" onClick={scrollToTop} aria-label={t('backToTop')} title={t('backToTop')} className={`${BTN_PRIMARY} h-12 w-12`}>
               <FiArrowUp aria-hidden="true" className="h-5 w-5" />
             </button>
           </div>

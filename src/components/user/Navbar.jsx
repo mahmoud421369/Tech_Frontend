@@ -114,14 +114,15 @@ const readPickedAddress = () => {
 
 const NAV_CSS = `
 .nv-root{display:contents}
-.nv{--bd:#e5e7eb;--sf:#ffffff;--sf2:#f3f4f6;--tx:#052e1e;--mu:rgba(5,46,30,.68);--acc:#059669;--ln:#000000;--shd:#000000;--dx:1;color:var(--tx)}
+.nv{--bd:#e5e7eb;--sf:#ffffff;--sf2:#f3f4f6;--tx:#052e1e;--mu:rgba(5,46,30,.68);--acc:#059669;--ln:#000000;--shd:#000000;--dx:1;--bar:#047857;--bt:#ffffff;--bh:rgba(255,255,255,.16);--bon:#065f46;color:var(--tx)}
 .nv[dir=rtl]{--dx:-1}
-.nv-dark{--bd:rgba(255,255,255,.16);--sf:#1c1c1e;--sf2:#2a2a2e;--tx:#ffffff;--mu:rgba(255,255,255,.66);--acc:#39ff88;--ln:rgba(255,255,255,.16);--shd:#0b4a35}
+.nv-dark{--bd:rgba(255,255,255,.16);--sf:#1c1c1e;--sf2:#2a2a2e;--tx:#ffffff;--mu:rgba(255,255,255,.66);--acc:#39ff88;--ln:rgba(255,255,255,.16);--shd:#0b4a35;--bar:#022c22;--bt:#39ff88;--bh:rgba(57,255,136,.14);--bon:#064e3b}
 .nv-poppins{font-family:'Poppins',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif}
 .nv-head{transition:transform .2s cubic-bezier(.2,.8,.2,1);will-change:transform}
 .nv-root[data-hide=true] .nv-head{transform:translate3d(0,-100%,0)}
 .nav-scroll{scrollbar-width:thin;scrollbar-color:var(--acc) transparent;overscroll-behavior:contain}
 .nv-hide{scrollbar-width:none}
+.nv-em .nav-scroll{scrollbar-color:var(--bt) transparent}
 .nv-hide::-webkit-scrollbar{display:none}
 @keyframes navPop{from{opacity:0;transform:translate3d(0,-6px,0) scale(.98)}to{opacity:1;transform:none}}
 @keyframes navBadge{0%{transform:scale(.6)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
@@ -168,12 +169,15 @@ const injectNavAssets = () => {
 injectNavAssets();
 
 const FOCUS = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
-const ICON_BTN = `relative inline-flex h-10 w-10 flex-none cursor-pointer items-center justify-center rounded-lg text-[color:var(--tx)] transition-colors duration-150 hover:bg-[color:var(--sf2)] ${FOCUS}`;
-const BAR_BG = 'bg-[#39ff88]';
-const BAR_BTN = 'relative inline-flex h-10 min-w-10 flex-none cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 border-transparent px-2.5 text-sm font-bold text-emerald-950 transition-colors duration-150 hover:border-black hover:bg-white/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-black disabled:cursor-not-allowed disabled:opacity-60';
-const BAR_BTN_ON = '!border-black bg-white';
+const FOCUS_EM = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--bt)]';
+const ICON_BTN = `relative inline-flex h-10 w-10 flex-none cursor-pointer items-center justify-center rounded-lg text-[color:var(--bt)] transition-colors duration-150 hover:bg-[color:var(--bh)] ${FOCUS_EM}`;
+const BAR_BG = 'bg-[color:var(--bar)]';
+const BAR_BTN = 'relative inline-flex h-10 min-w-10 flex-none cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 border-transparent px-2.5 text-sm font-bold text-[color:var(--bt)] transition-colors duration-150 hover:border-[color:var(--ln)] hover:bg-[color:var(--bh)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[color:var(--bt)] disabled:cursor-not-allowed disabled:opacity-60';
+const BAR_BTN_ON = '!border-[color:var(--ln)] bg-[color:var(--bon)]';
 const ROW_LINK = 'inline-flex h-9 flex-none items-center gap-2 whitespace-nowrap rounded-lg border-2 px-3 text-sm font-bold transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[color:var(--acc)]';
 const POPUP = 'nav-pop absolute z-50 overflow-hidden rounded-2xl border-[3px] border-[color:var(--ln)] bg-[color:var(--sf)] text-[color:var(--tx)] [box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--shd)]';
+const POPUP_EM = 'nv-em nav-pop absolute z-50 overflow-hidden rounded-2xl border-[3px] border-[color:var(--ln)] bg-[color:var(--bar)] text-[color:var(--bt)] [box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--shd)]';
+const POPUP_LABEL_EM = 'border-b-2 border-[color:var(--ln)] px-4 py-3 text-xs font-extrabold uppercase tracking-wide opacity-80 rtl:tracking-normal';
 const POPUP_LABEL = 'border-b-2 border-[color:var(--ln)] px-4 py-3 text-xs font-extrabold uppercase tracking-wide text-[color:var(--mu)] rtl:tracking-normal';
 
 const clearAccountCache = () => {
@@ -374,14 +378,14 @@ const AddressOption = memo(({ address, active, onPick, defaultLabel }) => {
         role="option"
         aria-selected={active}
         onClick={pick}
-        className={`flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-start transition-colors duration-150 hover:bg-[color:var(--sf2)] ${FOCUS} ${active ? 'bg-[color:var(--sf2)]' : ''}`}
+        className={`flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-start transition-colors duration-150 hover:bg-[color:var(--bh)] ${FOCUS_EM} ${active ? 'bg-[color:var(--bh)]' : ''}`}
       >
-        <span className={`grid h-8 w-8 flex-none place-items-center rounded-full border-2 border-black ${active ? 'bg-[#39ff88] text-emerald-950' : 'bg-[color:var(--sf2)] text-[color:var(--acc)]'}`}>
+        <span className={`grid h-8 w-8 flex-none place-items-center rounded-full border-2 border-black ${active ? 'bg-[#39ff88] text-emerald-950' : 'bg-[color:var(--bh)] text-[color:var(--bt)]'}`}>
           {active ? <FiCheck aria-hidden="true" size={15} strokeWidth={3} /> : <FiMapPin aria-hidden="true" size={15} />}
         </span>
         <span className="min-w-0 flex-1">
           <span className={`block truncate text-sm ${active ? 'font-extrabold' : 'font-bold'}`}>{title}</span>
-          {sub && <span className="block truncate text-xs font-medium text-[color:var(--mu)]">{sub}</span>}
+          {sub && <span className="block truncate text-xs font-medium opacity-75">{sub}</span>}
         </span>
         {address.isDefault && (
           <span className="flex-none rounded-full bg-[#39ff88] px-2 py-0.5 text-[10px] font-extrabold text-emerald-950 ring-2 ring-black">{defaultLabel}</span>
@@ -391,7 +395,7 @@ const AddressOption = memo(({ address, active, onPick, defaultLabel }) => {
   );
 });
 
-const DeliverMenu = memo(({ addresses, selected, loading, onSelect, onManage, t, mobile }) => {
+const DeliverMenu = memo(({ addresses, selected, loading, onSelect, onManage, t }) => {
   const location = useLocation();
   const wrapRef = useRef(null);
   const listId = useId();
@@ -413,7 +417,7 @@ const DeliverMenu = memo(({ addresses, selected, loading, onSelect, onManage, t,
   const hasAddresses = addresses.length > 0;
 
   return (
-    <div ref={wrapRef} className={mobile ? 'min-w-0' : 'relative min-w-0 flex-none'}>
+    <div ref={wrapRef} className="relative min-w-0 flex-none">
       <button
         type="button"
         onClick={toggle}
@@ -421,28 +425,19 @@ const DeliverMenu = memo(({ addresses, selected, loading, onSelect, onManage, t,
         aria-expanded={open}
         aria-controls={open && hasAddresses ? listId : undefined}
         aria-label={`${t('deliverTo')}: ${headline}`}
-        className={mobile
-          ? 'inline-flex h-9 w-full cursor-pointer items-center gap-1.5 rounded-lg text-start text-xs font-semibold text-emerald-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-black'
-          : `${BAR_BTN} max-w-[15rem] !justify-start text-start ${open ? BAR_BTN_ON : ''}`}
+        className={`${BAR_BTN} max-w-[15rem] !justify-start text-start ${open ? BAR_BTN_ON : ''}`}
       >
-        <FiMapPin aria-hidden="true" size={mobile ? 15 : 20} className="flex-none" />
-        {mobile ? (
-          <span className="min-w-0 flex-1 truncate">
-            <span className="text-emerald-950/70">{t('deliverTo')} </span>
-            <span className="font-extrabold">{headline}</span>
-          </span>
-        ) : (
-          <span className="min-w-0 flex-1 leading-tight">
-            <span className="block truncate text-[11px] font-semibold text-emerald-950/70">{t('deliverTo')}</span>
-            <span className="block truncate text-sm font-extrabold">{headline}{detail && selected?.city ? ` • ${selected.street || detail}` : ''}</span>
-          </span>
-        )}
+        <FiMapPin aria-hidden="true" size={20} className="flex-none" />
+        <span className="min-w-0 flex-1 leading-tight">
+          <span className="block truncate text-[11px] font-semibold opacity-70">{t('deliverTo')}</span>
+          <span className="block truncate text-sm font-extrabold">{headline}{detail && selected?.city ? ` • ${selected.street || detail}` : ''}</span>
+        </span>
         <FiChevronDown aria-hidden="true" size={14} className={`flex-none transition-transform duration-150 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-        <div className={`${POPUP} top-full mt-3 ${mobile ? 'inset-x-0' : 'start-0 w-80'}`}>
-          <p className={POPUP_LABEL}>{t('chooseAddress')}</p>
+        <div className={`${POPUP_EM} start-0 top-full mt-3 w-80`}>
+          <p className={POPUP_LABEL_EM}>{t('chooseAddress')}</p>
           {hasAddresses ? (
             <ul id={listId} role="listbox" aria-label={t('chooseAddress')} className="nav-scroll max-h-72 overflow-y-auto p-1">
               {addresses.map((a) => (
@@ -450,12 +445,12 @@ const DeliverMenu = memo(({ addresses, selected, loading, onSelect, onManage, t,
               ))}
             </ul>
           ) : (
-            <p className="px-4 py-5 text-sm font-semibold text-[color:var(--mu)]">{loading ? t('addressLoading') : t('noAddresses')}</p>
+            <p className="px-4 py-5 text-sm font-semibold opacity-75">{loading ? t('addressLoading') : t('noAddresses')}</p>
           )}
           <button
             type="button"
             onClick={manage}
-            className={`flex min-h-12 w-full cursor-pointer items-center gap-2 border-t-2 border-[color:var(--ln)] px-4 text-sm font-extrabold text-[color:var(--acc)] transition-colors duration-150 hover:bg-[color:var(--sf2)] ${FOCUS}`}
+            className={`flex min-h-12 w-full cursor-pointer items-center gap-2 border-t-2 border-[color:var(--ln)] px-4 text-sm font-extrabold transition-colors duration-150 hover:bg-[color:var(--bh)] ${FOCUS_EM}`}
           >
             {hasAddresses ? <FiChevronRight aria-hidden="true" size={15} className="rtl:rotate-180" /> : <FiPlus aria-hidden="true" size={15} />}
             {hasAddresses ? t('manageAddresses') : t('addAddress')}
@@ -481,7 +476,7 @@ const CartLink = memo(({ count, label, active }) => (
         key={count}
         aria-hidden="true"
         dir="ltr"
-        className="nav-badge absolute -end-1 -top-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-black bg-black px-1 text-[10px] font-extrabold leading-none tabular-nums text-[#39ff88]"
+        className="nav-badge absolute -end-1 -top-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-[color:var(--bar)] bg-[#39ff88] px-1 text-[10px] font-extrabold leading-none tabular-nums text-emerald-950"
       >
         {count > 99 ? '99+' : count}
       </span>
@@ -490,11 +485,11 @@ const CartLink = memo(({ count, label, active }) => (
 ));
 
 const NotificationItem = memo(({ n, onDelete, removeLabel }) => (
-  <div className={`flex items-start gap-3 border-b border-[color:var(--bd)] px-4 py-3 last:border-b-0 ${!n.read ? 'bg-[color:var(--sf2)] [border-inline-start:4px_solid_var(--acc)]' : ''}`}>
+  <div className={`flex items-start gap-3 border-b border-[color:var(--bh)] px-4 py-3 last:border-b-0 ${!n.read ? 'bg-[color:var(--bh)] [border-inline-start:4px_solid_#39ff88]' : ''}`}>
     <div className="min-w-0 flex-1">
       <p className={`truncate text-sm ${!n.read ? 'font-extrabold' : 'font-semibold'}`}>{n.title}</p>
-      <p className="mt-0.5 line-clamp-2 text-xs text-[color:var(--mu)]">{n.message}</p>
-      <p className="mt-1.5 text-[11px] font-semibold text-[color:var(--mu)]">{formatTime(n.timestamp)}</p>
+      <p className="mt-0.5 line-clamp-2 text-xs opacity-75">{n.message}</p>
+      <p className="mt-1.5 text-[11px] font-semibold opacity-70">{formatTime(n.timestamp)}</p>
     </div>
     <button type="button" onClick={() => onDelete(n.id)} aria-label={removeLabel} className={`${ICON_BTN} !h-8 !w-8`}>
       <FiX aria-hidden="true" size={14} />
@@ -510,7 +505,7 @@ const NotificationList = memo(({ notifications, loading, onDelete, t }) => {
   if (loading) {
     return (
       <div className="space-y-3 p-4">
-        {SKELETON_ROWS.map((i) => <div key={i} className="h-14 animate-pulse rounded-lg bg-[color:var(--sf2)] motion-reduce:animate-none" />)}
+        {SKELETON_ROWS.map((i) => <div key={i} className="h-14 animate-pulse rounded-lg bg-[color:var(--bh)] motion-reduce:animate-none" />)}
       </div>
     );
   }
@@ -521,7 +516,7 @@ const NotificationList = memo(({ notifications, loading, onDelete, t }) => {
           <FiBell aria-hidden="true" size={24} />
         </span>
         <p className="text-sm font-extrabold">{t('allCaughtUp')}</p>
-        <p className="max-w-[16rem] text-xs font-medium text-[color:var(--mu)]">{t('emptyNotifHint')}</p>
+        <p className="max-w-[16rem] text-xs font-medium opacity-75">{t('emptyNotifHint')}</p>
       </div>
     );
   }
@@ -533,7 +528,7 @@ const NotifHeader = memo(({ unread, onClose, t }) => (
   <div className="flex items-center justify-between border-b-2 border-[color:var(--ln)] px-4 py-3">
     <div>
       <p className="text-sm font-extrabold">{t('notifications')}</p>
-      {unread > 0 && <p className="text-xs font-semibold text-[color:var(--mu)]"><span dir="ltr" className="tabular-nums">{unread}</span> {t('unread')}</p>}
+      {unread > 0 && <p className="text-xs font-semibold opacity-75"><span dir="ltr" className="tabular-nums">{unread}</span> {t('unread')}</p>}
     </div>
     <button type="button" onClick={onClose} aria-label={t('closeNotifications')} className={`${ICON_BTN} !h-8 !w-8`}>
       <FiX aria-hidden="true" size={16} />
@@ -542,7 +537,7 @@ const NotifHeader = memo(({ unread, onClose, t }) => (
 ));
 
 const NotifPanel = memo(({ className, unread, notifications, loading, onClose, onDelete, t }) => (
-  <div className={`nav-pop z-50 overflow-hidden rounded-2xl border-[3px] border-[color:var(--ln)] bg-[color:var(--sf)] text-[color:var(--tx)] [box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--shd)] ${className}`}>
+  <div className={`${POPUP_EM} ${className}`}>
     <NotifHeader unread={unread} onClose={onClose} t={t} />
     <div className="nav-scroll max-h-[340px] overflow-y-auto">
       <NotificationList notifications={notifications} loading={loading} onDelete={onDelete} t={t} />
@@ -578,7 +573,7 @@ const CAT_TAB = 'inline-flex h-8 flex-none items-center gap-2 whitespace-nowrap 
 const CategoryLinks = memo(({ categories, loading, activeId }) => {
   if (loading) {
     return SKELETON_TABS.map((i) => (
-      <span key={i} className="h-8 w-24 flex-none animate-pulse rounded-lg bg-black/15 motion-reduce:animate-none" />
+      <span key={i} className="h-8 w-24 flex-none animate-pulse rounded-lg bg-[color:var(--bh)] motion-reduce:animate-none" />
     ));
   }
   return categories.map((cat) => {
@@ -588,7 +583,7 @@ const CategoryLinks = memo(({ categories, loading, activeId }) => {
         key={cat.id}
         to={categoryRoute(cat.id)}
         aria-current={active ? 'page' : undefined}
-        className={`${CAT_TAB} ${active ? 'border-black bg-black font-bold text-[#39ff88]' : 'border-transparent font-semibold text-emerald-950 hover:border-black hover:bg-white/50'}`}
+        className={`${CAT_TAB} ${active ? 'border-[color:var(--ln)] bg-[#39ff88] font-bold text-emerald-950' : 'border-transparent font-semibold text-[color:var(--bt)] hover:border-[color:var(--ln)] hover:bg-[color:var(--bh)]'}`}
       >
         <CategoryIcon name={cat.name} size={16} />
         <span>{cat.name}</span>
@@ -825,7 +820,7 @@ const NavbarContent = ({ cartCount = 0, darkMode, toggleDarkMode }) => {
       const raw = res.data?.content ?? res.data ?? [];
       return (Array.isArray(raw) ? raw : []).filter((a) => a && a.id != null).map(toNavAddress);
     },
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && isDesktop,
     staleTime: ADDRESS_STALE,
     refetchOnWindowFocus: false,
     retry: (c, err) => err?.response?.status !== 401 && c < 1,
@@ -905,13 +900,13 @@ const NavbarContent = ({ cartCount = 0, darkMode, toggleDarkMode }) => {
   const bell = (
     <button type="button" onClick={toggleNotifications} aria-label={bellLabel} aria-expanded={showNotifications} className={`${BAR_BTN} ${showNotifications ? BAR_BTN_ON : ''}`}>
       <FiBell aria-hidden="true" size={19} fill={hasUnread ? 'currentColor' : 'none'} />
-      {hasUnread && <span aria-hidden="true" className="absolute end-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[#39ff88]" />}
+      {hasUnread && <span aria-hidden="true" className="absolute end-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[color:var(--bar)]" />}
     </button>
   );
   const cart = <CartLink count={count} label={t('cart')} active={location.pathname === '/cart'} />;
   const langMenu = <LangMenu language={language} onChange={changeLanguage} label={t('language')} />;
   const logoutButton = <LogoutButton onLogout={handleLogout} label={t('logout')} busy={loggingOut} />;
-  const deliverMenu = (mobile) => (
+  const deliverMenu = (
     <DeliverMenu
       addresses={addresses}
       selected={selectedAddress}
@@ -919,7 +914,6 @@ const NavbarContent = ({ cartCount = 0, darkMode, toggleDarkMode }) => {
       onSelect={selectAddress}
       onManage={manageAddresses}
       t={t}
-      mobile={mobile}
     />
   );
 
@@ -929,7 +923,7 @@ const NavbarContent = ({ cartCount = 0, darkMode, toggleDarkMode }) => {
 
       {isDesktop ? (
         <header dir={dir} className={`${tone} ${font} nv-head fixed inset-x-0 top-0 z-50`}>
-          <div className={`${BAR_BG} border-b-[3px] border-black text-emerald-950`}>
+          <div className={`${BAR_BG} border-b-[3px] border-[color:var(--ln)] text-[color:var(--bt)]`}>
             <div className="mx-auto flex h-16 max-w-[88rem] items-center gap-3 px-6 xl:gap-4">
               <Link to="/" aria-label="Tech & Restore – home" className={LOGO_LINK}>
                 <Logo heightClass="h-10" />
@@ -937,7 +931,7 @@ const NavbarContent = ({ cartCount = 0, darkMode, toggleDarkMode }) => {
 
               {isAuthenticated ? (
                 <>
-                  {deliverMenu(false)}
+                  {deliverMenu}
                   <div className="ms-auto flex flex-shrink-0 items-center gap-0.5">
                     {langMenu}
                     <div className="relative" ref={notifRef}>
@@ -959,7 +953,7 @@ const NavbarContent = ({ cartCount = 0, darkMode, toggleDarkMode }) => {
                       <span className="hidden xl:inline">{t('account')}</span>
                     </Link>
                     {cart}
-                    <span aria-hidden="true" className="mx-1.5 h-6 w-0.5 bg-black/30" />
+                    <span aria-hidden="true" className="mx-1.5 h-6 w-0.5 bg-[color:var(--ln)] opacity-30" />
                     <ThemeToggle darkMode={darkMode} onToggle={toggleDarkMode} label={t('toggleTheme')} />
                     {logoutButton}
                   </div>
@@ -968,8 +962,8 @@ const NavbarContent = ({ cartCount = 0, darkMode, toggleDarkMode }) => {
                 <div className="ms-auto flex flex-shrink-0 items-center gap-1.5">
                   {langMenu}
                   <ThemeToggle darkMode={darkMode} onToggle={toggleDarkMode} label={t('toggleTheme')} />
-                  <Link to="/login" className="ms-2 inline-flex h-10 items-center rounded-xl border-[3px] border-black px-4 text-sm font-bold text-emerald-950 transition-colors duration-150 hover:bg-white/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black">{t('login')}</Link>
-                  <Link to="/signup" className="inline-flex h-10 items-center rounded-xl border-[3px] border-black bg-black px-4 text-sm font-bold text-[#39ff88] transition-colors duration-150 hover:bg-emerald-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black">{t('signup')}</Link>
+                  <Link to="/login" className="ms-2 inline-flex h-10 items-center rounded-xl border-[3px] border-[color:var(--ln)] px-4 text-sm font-bold text-[color:var(--bt)] transition-colors duration-150 hover:bg-[color:var(--bh)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--bt)]">{t('login')}</Link>
+                  <Link to="/signup" className="inline-flex h-10 items-center rounded-xl border-[3px] border-[color:var(--ln)] bg-[#39ff88] px-4 text-sm font-bold text-emerald-950 transition-colors duration-150 hover:bg-[#2fe67a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--bt)]">{t('signup')}</Link>
                 </div>
               )}
             </div>
@@ -997,8 +991,8 @@ const NavbarContent = ({ cartCount = 0, darkMode, toggleDarkMode }) => {
         </header>
       ) : (
         <>
-          <header dir={dir} className={`${tone} ${font} nv-head fixed inset-x-0 top-0 z-50 border-b-[3px] border-black`}>
-            <div className={`relative ${BAR_BG} text-emerald-950`} ref={notifRef}>
+          <header dir={dir} className={`${tone} ${font} nv-head fixed inset-x-0 top-0 z-50 border-b-[3px] border-[color:var(--ln)]`}>
+            <div className={`relative ${BAR_BG} text-[color:var(--bt)]`} ref={notifRef}>
               <div className="flex h-14 items-center justify-between gap-1 px-3">
                 <Link to="/" aria-label="Tech & Restore – home" className={LOGO_LINK}>
                   <Logo heightClass="h-8" />
@@ -1015,16 +1009,11 @@ const NavbarContent = ({ cartCount = 0, darkMode, toggleDarkMode }) => {
                   {isAuthenticated && logoutButton}
                 </div>
               </div>
-              {isAuthenticated && (
-                <div className="relative border-t-2 border-black/20 px-3">
-                  {deliverMenu(true)}
-                </div>
-              )}
               {showNotifications && <NotifPanel className="absolute inset-x-3 top-full mt-2" {...panelProps} />}
             </div>
 
             {hasCategoryBar && (
-              <nav aria-label={t('categories')} className={`nv-hide flex items-center gap-1 overflow-x-auto border-t-2 border-black/20 ${BAR_BG} px-2 py-1.5 text-emerald-950`}>
+              <nav aria-label={t('categories')} className={`nv-hide flex items-center gap-1 overflow-x-auto border-t-2 border-black/20 ${BAR_BG} px-2 py-1.5 text-[color:var(--bt)]`}>
                 <CategoryLinks categories={categories} loading={loadingCats} activeId={activeCat} />
               </nav>
             )}

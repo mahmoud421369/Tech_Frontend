@@ -24,6 +24,8 @@ const IMPORT_MAX_BYTES = 5 * 1024 * 1024;
 const FETCH_SIZE = 500;
 const SKELETON_COLS = [0, 1, 2, 3, 4];
 const ROW_OPTIONS = [5, 10, 25, 50];
+const IMPORT_SYNC_DELAYS = [0, 1500, 4000];
+const LIST_KEYS = ['content', 'items', 'data', 'products', 'inventory', 'results', 'rows'];
 
 const TABLE_FALLBACK = {
   en: {
@@ -99,6 +101,7 @@ const PG_CSS = `
 .pg-chip{display:inline-flex;align-items:center;gap:6px;background:var(--pg-card);color:var(--pg-ink);border:2px solid var(--pg-line);padding:1px 8px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.6;white-space:nowrap}
 .pg-chip-a{background:var(--pg-accent);color:#04261a}
 .pg-tile{display:inline-flex;align-items:center;justify-content:center;flex:none;border:2px solid var(--pg-line);background:var(--pg-accent);color:#04261a}
+.pg-thumb{display:inline-flex;align-items:center;justify-content:center;flex:none;overflow:hidden;border:2px solid var(--pg-line);background:#ffffff}
 .pg-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--pg-card);color:var(--pg-ink);border:2px solid var(--pg-line);box-shadow:2px 2px 0 var(--pg-shadow);font-weight:700;cursor:pointer;white-space:nowrap;transition:transform .12s ease,box-shadow .12s ease}
 .pg-btn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--pg-shadow)}
 .pg-btn:active:not(:disabled){transform:translate(1px,1px);box-shadow:0 0 0 var(--pg-shadow)}
@@ -131,6 +134,19 @@ const SORT_VALUES = ['name', 'highest_price', 'lowest_price', 'highest_stock', '
 const STATUS_DOT = { ok: 'bg-emerald-500', low: 'bg-amber-400', out: 'bg-red-500' };
 const TONES = { sky: '#22d3ee', am: '#facc15', ro: '#fb7185', vi: '#2dd4bf', em: '#34d399' };
 
+const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
+
+const pickList = (raw) => {
+  if (Array.isArray(raw)) return raw;
+  if (!raw || typeof raw !== 'object') return [];
+  for (const key of LIST_KEYS) {
+    const v = raw[key];
+    if (Array.isArray(v)) return v;
+    if (v && typeof v === 'object' && Array.isArray(v.content)) return v.content;
+  }
+  return [];
+};
+
 const statusOf = (i) => (i.stock <= 0 ? 'out' : i.stock < i.threshold ? 'low' : 'ok');
 const hasDiscount = (i) => i.finalPrice < i.price;
 const discountPct = (i) => (i.price > 0 ? ((i.price - i.finalPrice) / i.price) * 100 : 0);
@@ -146,6 +162,12 @@ const discountBadge = (i, nf, priceLabel) => {
     : `-${nf.format(Math.max(1, Math.round(discountPct(i))))}%`;
 };
 
+const pickCover = (i) => {
+  const first = (v) => (Array.isArray(v) && v.length ? v[0] : null);
+  const url = i.imageUrl || i.image || first(i.images) || first(i.imageUrls) || '';
+  return typeof url === 'string' ? url.trim() : '';
+};
+
 const toSpecList = (v) => {
   if (Array.isArray(v)) return v.map((s) => String(s ?? '').trim()).filter(Boolean);
   if (typeof v === 'string') return v.split(/[\n,،]/).map((s) => s.trim()).filter(Boolean);
@@ -158,19 +180,24 @@ const computeFinal = (price, type, value) => {
   return value < price ? Math.round((price - value) * 100) / 100 : price;
 };
 
-const normalize = (i) => {
+const normalize = (raw, idx) => {
+  const i = raw && typeof raw === 'object' ? raw : {};
   const price = num(i.price);
   const apiFinal = num(i.finalPrice);
   const discountType = i.discountType || null;
   const discountValue = num(i.discountValue);
   const finalPrice = apiFinal > 0 && apiFinal < price ? apiFinal : computeFinal(price, discountType, discountValue);
+  const id = i.id ?? i.productId ?? i._id ?? i.sku ?? i.code ?? `row-${idx}`;
   return {
     ...i,
-    stock: Math.max(0, num(i.stock ?? i.stockQuantity)),
+    id,
+    name: i.name ?? i.productName ?? i.title ?? '',
+    stock: Math.max(0, num(i.stock ?? i.stockQuantity ?? i.quantity)),
     price,
     finalPrice,
     discountType,
     discountValue,
+    cover: pickCover(i),
     specifications: toSpecList(i.specifications),
     threshold: num(i.threshold) > 0 ? num(i.threshold) : DEFAULT_THRESHOLD,
   };
@@ -190,12 +217,42 @@ const pageList = (page, total) => {
   return out;
 };
 
+const useBodyLock = () => {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+};
+
 const StatusPill = memo(({ status, label }) => (
   <span className="pg-chip">
     <span className={`pg-line w-2 h-2 border ${STATUS_DOT[status]}`} />
     {label}
   </span>
 ));
+
+const ProductThumb = memo(({ src, className, iconSize, icon: Icon = FiBox }) => {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => { setFailed(false); }, [src]);
+  const onError = useCallback(() => setFailed(true), []);
+  if (!src || failed) {
+    return <span className={`pg-tile ${className}`}><Icon size={iconSize} aria-hidden="true" /></span>;
+  }
+  return (
+    <span className={`pg-thumb ${className}`}>
+      <img
+        src={src}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        referrerPolicy="no-referrer"
+        onError={onError}
+        className="h-full w-full object-contain"
+      />
+    </span>
+  );
+});
 
 const StatCard = memo(({ label, value, description, icon: Icon, tone }) => (
   <div className="pg-card pg-lift p-4 sm:p-5 flex items-center gap-3 min-w-0">
@@ -265,11 +322,7 @@ const Pagination = memo(({ page, total, onChange, labels, formatNumber }) => {
 });
 
 const Overlay = memo(({ onClose, children }) => {
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
-  }, []);
+  useBodyLock();
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
       <div className="pg-fade absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
@@ -280,11 +333,7 @@ const Overlay = memo(({ onClose, children }) => {
 
 const FilterPanel = memo(({ title, note, groups, onReset, onClose, labels }) => {
   useEscape(onClose);
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
-  }, []);
+  useBodyLock();
   return (
     <div className="fixed inset-0 z-[1000] flex justify-end">
       <div className="pg-fade absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
@@ -331,7 +380,7 @@ const InventoryRow = memo(({ item, busy, L, onDetails, onUpdateStock }) => {
     <tr className="pg-tr">
       <td className="pg-td px-3 py-2.5 whitespace-nowrap">
         <div className="flex items-center gap-2.5">
-          <span className="pg-tile w-9 h-9"><FiBox size={16} aria-hidden="true" /></span>
+          <ProductThumb src={item.cover} className="w-10 h-10" iconSize={16} />
           <div className="min-w-0">
             <p className="text-xs font-extrabold uppercase truncate max-w-[260px]">{item.name || '—'}</p>
             <p className="pg-muted text-[10px] font-semibold truncate max-w-[260px]">{item.category || item.categoryName || t.row.uncategorized}</p>
@@ -389,7 +438,7 @@ const DetailsModal = memo(({ item, L, X, onClose }) => {
 
         <div className="pg-scroll flex-1 overflow-y-auto px-5 py-4 space-y-3.5">
           <div className="flex items-center gap-3">
-            <span className="pg-tile h-12 w-12"><FiPackage size={20} aria-hidden="true" /></span>
+            <ProductThumb src={item.cover} className="h-16 w-16" iconSize={24} icon={FiPackage} />
             <div className="min-w-0">
               <h4 className="text-sm font-extrabold uppercase break-words">{item.name || '—'}</h4>
               <p className="pg-muted text-[11px] font-semibold">{item.category || item.categoryName || t.row.uncategorized}</p>
@@ -562,8 +611,15 @@ const Inventory = () => {
   const abortRef = useRef(null);
   const totalAbortRef = useRef(null);
   const fileInputRef = useRef(null);
+  const mountedRef = useRef(true);
+  const syncTokenRef = useRef(0);
   inventoryRef.current = inventory;
   useEffect(() => { document.title = t.docTitle; }, [t.docTitle]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const term = useDeferredValue(search).trim().toLowerCase();
 
@@ -572,7 +628,10 @@ const Inventory = () => {
     const controller = new AbortController();
     totalAbortRef.current = controller;
     try {
-      const res = await api.get(`${API_BASE}/total-value`, { signal: controller.signal });
+      const res = await api.get(`${API_BASE}/total-value`, {
+        params: { _t: Date.now() },
+        signal: controller.signal,
+      });
       if (!controller.signal.aborted) setTotalValue(num(res.data?.totalValue ?? res.data));
     } catch {
       setTotalValue((v) => v);
@@ -586,23 +645,24 @@ const Inventory = () => {
     if (!silent) setLoading(true);
     try {
       const res = await api.get(`${API_BASE}/search`, {
-        params: { query: '', page: 0, size: FETCH_SIZE },
+        params: { query: '', page: 0, size: FETCH_SIZE, _t: Date.now() },
         signal: controller.signal,
       });
+      if (controller.signal.aborted) return -1;
       const raw = res.data;
-      const list = Array.isArray(raw?.content) ? raw.content : Array.isArray(raw) ? raw : [];
-      if (!controller.signal.aborted) {
-        const total = num(raw?.totalElements);
-        setInventory(list.map(normalize));
-        setTruncated(total > list.length || (!total && list.length >= FETCH_SIZE));
-        setLoadError(false);
-        setLastUpdated(new Date());
-      }
+      const list = pickList(raw);
+      const total = num(raw?.totalElements ?? raw?.total);
+      setInventory(list.map(normalize));
+      setTruncated(total > list.length || (!total && list.length >= FETCH_SIZE));
+      setLoadError(false);
+      setLastUpdated(new Date());
+      return list.length;
     } catch (err) {
       if (!controller.signal.aborted) {
         setLoadError(true);
         if (!silent) toast({ icon: 'error', title: tRef.current.inventory.toasts.loadFail, text: errText(err) });
       }
+      return -1;
     } finally {
       if (!controller.signal.aborted) setLoading(false);
     }
@@ -621,6 +681,19 @@ const Inventory = () => {
     fetchInventory();
     fetchTotalValue();
   }, [loading, fetchInventory, fetchTotalValue]);
+
+  const syncAfterImport = useCallback(async () => {
+    const token = ++syncTokenRef.current;
+    const before = inventoryRef.current.length;
+    for (const delay of IMPORT_SYNC_DELAYS) {
+      if (delay) await sleep(delay);
+      if (!mountedRef.current || token !== syncTokenRef.current) return;
+      const n = await fetchInventory({ silent: true });
+      if (!mountedRef.current || token !== syncTokenRef.current) return;
+      fetchTotalValue();
+      if (n > 0 && n !== before) return;
+    }
+  }, [fetchInventory, fetchTotalValue]);
 
   const updateStock = useCallback(async (id, next) => {
     if (!isSafeId(id) || inflight.current.has(id)) return;
@@ -688,19 +761,27 @@ const Inventory = () => {
     if (!isConfirmed) return;
 
     setImporting(true);
+    let ok = false;
     try {
       const fd = new FormData();
       fd.append('file', file, file.name);
-      await api.post('/api/shops/products/import', fd);
-      toast({ icon: 'success', title: tt.imported });
-      fetchInventory({ silent: true });
-      fetchTotalValue();
+      const res = await api.post('/api/shops/products/import', fd);
+      ok = true;
+      const msg = typeof res.data === 'string' ? res.data.slice(0, 120) : undefined;
+      toast({ icon: 'success', title: tt.imported, text: msg });
     } catch (err) {
       toast({ icon: 'error', title: tt.importFail, text: errText(err) });
     } finally {
       setImporting(false);
     }
-  }, [importing, fetchInventory, fetchTotalValue]);
+    if (ok) {
+      setSearch('');
+      setStatusFilter('all');
+      setSortBy('name');
+      setCurrentPage(1);
+      syncAfterImport();
+    }
+  }, [importing, syncAfterImport]);
 
   const index = useMemo(() => inventory.map((i) => ({
     i,

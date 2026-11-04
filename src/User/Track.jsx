@@ -276,18 +276,14 @@ const buildItems = (o, loc, currency) => {
   return out;
 };
 
-const HL_URL = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M3 5Q50 1 100 4T197 4' fill='none' stroke='%2339ff88' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E")`;
-
 const PAGE_CSS = `
 @font-face{font-family:'Poppins Fallback';src:local('Arial'),local('Helvetica');size-adjust:112.6%;ascent-override:93.4%;descent-override:35.2%;line-gap-override:7.4%}
-.tk{--bd:#e5e7eb;--sf:#ffffff;--sf2:#f3f4f6;--tx:#052e1e;--mu:rgba(5,46,30,.68);--acc:#059669;--ln:#000000;--shd:#000000;--pg:#ecfdf5;--ping:#059669;--hi:rgba(255,255,255,.8);--dx:1;background:var(--pg);color:var(--tx);color-scheme:light;font-family:'Poppins','Poppins Fallback',ui-sans-serif,system-ui,-apple-system,'Segoe UI','Cairo',sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.tk{--bd:#e5e7eb;--sf:#ffffff;--sf2:#f3f4f6;--tx:#052e1e;--mu:rgba(5,46,30,.68);--acc:#059669;--ln:#000000;--shd:#000000;--pg:#ffffff;--ping:#059669;--hi:rgba(255,255,255,.8);--dx:1;background:var(--pg);color:var(--tx);color-scheme:light;font-family:'Poppins','Poppins Fallback',ui-sans-serif,system-ui,-apple-system,'Segoe UI','Cairo',sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 .tk[dir=rtl]{--dx:-1}
 .tk-dark{--bd:rgba(255,255,255,.16);--sf:#1c1c1e;--sf2:#2a2a2e;--tx:#ffffff;--mu:rgba(255,255,255,.66);--acc:#39ff88;--ln:rgba(255,255,255,.16);--shd:#0b4a35;--pg:#141414;--ping:#39ff88;--hi:rgba(255,255,255,.08);color-scheme:dark}
 .tk[lang=ar]{font-family:'Cairo','Poppins',ui-sans-serif,system-ui,sans-serif}
 .tk[lang=ar] *{letter-spacing:0!important}
 .tk button,.tk input{font-family:inherit}
-.tk-hl{padding-bottom:.2em;background:${HL_URL} left bottom/100% .3em no-repeat;-webkit-box-decoration-break:clone;box-decoration-break:clone}
-[dir="rtl"] .tk-hl{background-position:right bottom}
 @keyframes tkShimmer{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
 .tk-sk{position:relative;overflow:hidden}
 .tk-sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,var(--hi),transparent);animation:tkShimmer 1.3s ease-in-out infinite}
@@ -319,9 +315,7 @@ const injectStylesOnce = () => {
 injectStylesOnce();
 
 const CardTitle = memo(({ children, className = 'mb-5' }) => (
-  <h3 className={`${className} text-sm font-extrabold tracking-wide rtl:tracking-normal`}>
-    <span className="tk-hl">{children}</span>
-  </h3>
+  <h3 className={`${className} text-sm font-extrabold tracking-wide rtl:tracking-normal`}>{children}</h3>
 ));
 
 const Dropdown = memo(({ value, onChange, options, ariaLabel }) => {
@@ -493,7 +487,7 @@ const Stepper = memo(({ stages, stageIdx, label }) => (
 
 const SummaryCard = memo(({ order, headline, subText, stages, stageIdx, isCancelled, statusText, t }) => (
   <section data-tk-first aria-label={t('orderNumber')} className={`overflow-hidden ${CARD}`}>
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b-[3px] border-black bg-[#39ff88] px-5 py-3 text-emerald-950 sm:px-8">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b-[3px] border-[color:var(--ln)] bg-gray-100 px-5 py-3 text-emerald-950 sm:px-8">
       <p className="text-sm font-semibold">
         {t('orderNumber')} <span dir="ltr" className="font-extrabold">#{shortId(order)}</span>
       </p>
@@ -621,7 +615,7 @@ export const CantFindCard = memo(({ t, darkMode = false }) => (
 const StateCard = memo(({ icon: Icon = FiAlertCircle, title, text, children }) => (
   <div data-tk-first className={`mx-auto flex max-w-md flex-col items-center px-6 py-10 text-center ${CARD}`}>
     <span aria-hidden="true" className={`mb-5 flex h-16 w-16 items-center justify-center rounded-2xl ${CHIP}`}><Icon className="h-8 w-8" /></span>
-    <h2 className="text-xl font-extrabold tracking-tight rtl:tracking-normal"><span className="tk-hl">{title}</span></h2>
+    <h2 className="text-xl font-extrabold tracking-tight rtl:tracking-normal">{title}</h2>
     {text && <p className="mb-6 mt-4 text-sm font-medium text-[color:var(--mu)]">{text}</p>}
     {children}
   </div>
@@ -634,7 +628,7 @@ const SK_ITEMS = [0, 1];
 const TrackSkeleton = memo(({ label }) => (
   <div role="status" aria-busy="true" aria-label={label} className="space-y-6">
     <div className={`overflow-hidden ${CARD}`}>
-      <div className="h-[52px] border-b-[3px] border-black bg-[#39ff88]" />
+      <div className="h-[52px] border-b-[3px] border-[color:var(--ln)] bg-gray-100" />
       <div className="p-5 sm:p-8">
         <div className="space-y-3">
           <div className={`${SK} h-8 w-72 max-w-full`} />
@@ -857,9 +851,7 @@ const TrackContent = memo(({ darkMode }) => {
         </nav>
 
         <div className="mb-8 mt-5 flex flex-wrap items-end justify-between gap-4">
-          <h1 className="text-2xl font-extrabold tracking-tight rtl:tracking-normal sm:text-3xl">
-            <span className="tk-hl">{t('trackOrder')}</span>
-          </h1>
+          <h1 className="text-2xl font-extrabold tracking-tight rtl:tracking-normal sm:text-3xl">{t('trackOrder')}</h1>
           {showSelector && (
             <div className="w-full sm:w-80">
               <Dropdown ariaLabel={t('selectOrder')} value={order.id} onChange={setSelectedId} options={orderOptions} />

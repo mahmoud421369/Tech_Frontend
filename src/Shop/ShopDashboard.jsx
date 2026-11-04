@@ -871,7 +871,7 @@ const ShopDashboard = ({ darkMode: darkModeProp }) => {
                 {showSkeleton
                   ? [...Array(5)].map((_, i) => <SkeletonBlock key={i} className={`h-[124px] ${i === 4 ? "sm:col-span-2" : ""}`} />)
                   : statCards.map(({ key, ...c }) => <StatTile key={key} {...c} onNavigate={goTo} />)}
-                <RatingCard x={x} rating={rating} loading={ratingRes.loading && !ratingRes.data} />
+             
               </div>
               <MiniCalendar />
             </div>

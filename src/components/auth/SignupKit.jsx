@@ -14,6 +14,7 @@ import arTranslations from '../../locales/ar/translation.json';
 import frTranslations from '../../locales/fr/translation.json';
 import { useAppLanguage, languageDirection } from '../../common/utils/useAppLanguage';
 
+
 const AUTH_CSS = `
 .au-root{font-family:'Poppins','Cairo',ui-sans-serif,system-ui,sans-serif;--dx:1;--nb-bg:var(--page);--nb-card:var(--card);--nb-ink:var(--txt);--nb-muted:var(--mut);--nb-line:var(--ink);--nb-shadow:var(--sh);--nb-gray:var(--soft);--nb-accent:var(--acc);--nb-btn:var(--acc);--nb-on:#022c22}
 .au-root[dir=rtl]{--dx:-1}
@@ -49,7 +50,24 @@ const AUTH_CSS = `
 .nb-field-err{border-color:var(--err);box-shadow:3px 3px 0 var(--err)}
 .nb-link{font-weight:700;text-decoration:underline;text-decoration-color:var(--acc);text-decoration-thickness:2px;text-underline-offset:4px}
 @media (prefers-reduced-motion:reduce){.au-in,.au-pop,.au-shake,.au-err,.au-float{animation:none}.nb-btn{transition:none}}
+@media (max-width:640px){
+  .au-mobile-center{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100dvh - 3.5rem);padding-top:3.5rem}
+  .au-otp-grid{gap:.3rem}
+  .au-otp-box{height:2.75rem;width:2.35rem;font-size:1rem}
+  .au-illustration{max-width:18rem;margin-inline:auto}
+  .au-card{box-shadow:calc(var(--dx)*5px)_5px_0_0_var(--sh)}
+}
+@media (min-width:641px) and (max-width:1024px){
+  .au-otp-grid{gap:.45rem}
+  .au-otp-box{height:3rem;width:2.75rem}
+  .au-illustration{max-width:24rem;margin-inline:auto}
+}
+@media (min-width:1025px){
+  .au-otp-grid{gap:.5rem}
+  .au-otp-box{height:3rem;width:2.75rem}
+}
 `;
+
 
 const injectOnce = (key, css) => {
   if (typeof document === 'undefined' || document.querySelector(`style[data-${key}]`)) return;
@@ -60,6 +78,7 @@ const injectOnce = (key, css) => {
 };
 injectOnce('auth-styles', `${EXTRAS_CSS}\n${AUTH_CSS}`);
 injectOnce('logo-styles', LOGO_CSS);
+
 
 if (typeof document !== 'undefined' && !document.querySelector('link[data-poppins]')) {
   const pre1 = document.createElement('link');
@@ -76,22 +95,25 @@ if (typeof document !== 'undefined' && !document.querySelector('link[data-poppin
   document.head.append(pre1, pre2, font);
 }
 
+
 const THEME = {
   light: '[--ink:#022c22] [--sh:#022c22] [--acc:#34d399] [--icon:#059669] [--card:#ffffff] [--field:#ffffff] [--txt:#022c22] [--mut:#4b5563] [--soft:#f3f4f6] [--page:#f9fafb] [--err:#e11d48]',
   dark: '[--ink:#000000] [--sh:#000000] [--acc:#39ff88] [--icon:#39ff88] [--card:#2a2a2a] [--field:#1e1e1e] [--txt:#ffffff] [--mut:#a3a3a3] [--soft:#1e1e1e] [--page:#141414] [--err:#fb7185]',
 };
 
+
 const FOCUS = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--acc)]';
-const CARD = 'rounded-2xl border-[3px] border-[color:var(--ink)] bg-[color:var(--card)] text-[color:var(--txt)] [box-shadow:calc(var(--dx)*8px)_8px_0_0_var(--sh)]';
+const CARD = 'au-card rounded-2xl border-[3px] border-[color:var(--ink)] bg-[color:var(--card)] text-[color:var(--txt)] [box-shadow:calc(var(--dx)*8px)_8px_0_0_var(--sh)]';
 const BTN = `inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border-[3px] border-[color:var(--ink)] font-extrabold [box-shadow:calc(var(--dx)*4px)_4px_0_0_var(--sh)] transition-[transform,box-shadow,opacity] duration-150 motion-reduce:transition-none [@media(hover:hover)]:hover:-translate-y-0.5 [@media(hover:hover)]:hover:[box-shadow:calc(var(--dx)*5px)_6px_0_0_var(--sh)] active:translate-y-[4px] active:translate-x-[calc(var(--dx)*4px)] active:[box-shadow:0_0_0_0_var(--sh)] disabled:pointer-events-none disabled:opacity-45 ${FOCUS}`;
 const PRIMARY = `${BTN} bg-[color:var(--acc)] text-emerald-950`;
 const SECONDARY = `${BTN} bg-[color:var(--card)] text-[color:var(--txt)]`;
 const ICON_TILE = 'inline-flex flex-shrink-0 items-center justify-center rounded-xl border-2 border-[color:var(--ink)] bg-[color:var(--acc)] text-emerald-950 [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)]';
-const FIELD = 'flex h-12 items-center gap-2 rounded-lg border-2 bg-[color:var(--field)] text-[color:var(--txt)] ps-3 transition-[box-shadow,border-color,opacity] duration-150 focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-[color:var(--acc)]';
+const FIELD = 'flex h-12 w-full items-center gap-2 rounded-lg border-2 bg-[color:var(--field)] text-[color:var(--txt)] ps-3 transition-[box-shadow,border-color,opacity] duration-150 focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-[color:var(--acc)]';
 const FIELD_OK = 'border-[color:var(--ink)] [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)]';
 const FIELD_BAD = 'au-shake border-[color:var(--err)] [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--err)]';
-const OTP_BOX = `h-12 w-10 rounded-lg border-2 bg-[color:var(--field)] px-0 text-center text-lg font-extrabold text-[color:var(--txt)] outline-none transition-[box-shadow] duration-150 sm:w-11 ${FOCUS}`;
+const OTP_BOX = `au-otp-box h-12 w-10 rounded-lg border-2 bg-[color:var(--field)] px-0 text-center text-lg font-extrabold text-[color:var(--txt)] outline-none transition-[box-shadow] duration-150 sm:w-11 ${FOCUS}`;
 const LINK = `inline-flex min-h-9 cursor-pointer items-center gap-1.5 font-bold text-[color:var(--txt)] underline decoration-[color:var(--acc)] decoration-2 underline-offset-4 ${FOCUS}`;
+
 
 const NS = { en: enTranslations.signup, ar: arTranslations.signup, fr: frTranslations.signup };
 const T_CACHE = {};
@@ -100,6 +122,7 @@ const getT = (language) => (T_CACHE[language] ||= (key, vars) => {
   if (vars) for (const k in vars) s = s.split(`{{${k}}}`).join(vars[k]);
   return s;
 });
+
 
 const SIGNUP_LABEL = { en: 'Sign up', ar: 'إنشاء حساب', fr: "S'inscrire" };
 const SUCCESS_DELAY_MS = 1500;
@@ -116,7 +139,9 @@ const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const LOGO_MAX_BYTES = 2 * 1024 * 1024;
 const CONTROL_CHARS = /[\u0000-\u001F\u007F]/g;
 
+
 export const SHOP_TYPES = ['REPAIRER', 'SELLER', 'BOTH'];
+
 
 const MULTIPART_CONFIG = {
   headers: { 'Content-Type': 'multipart/form-data' },
@@ -125,8 +150,10 @@ const MULTIPART_CONFIG = {
 };
 const JSON_CONFIG = { timeout: 30_000 };
 
+
 const encoder = new TextEncoder();
 const byteLength = (s) => encoder.encode(s || '').length;
+
 
 const passwordStrengthError = (v, t) => {
   if (/\s/.test(v)) return t('errNoSpaces');
@@ -137,9 +164,11 @@ const passwordStrengthError = (v, t) => {
   return '';
 };
 
+
 const strengthOf = (v) => (v
   ? [v.length >= MIN_PASSWORD_LENGTH, /[a-z]/.test(v) && /[A-Z]/.test(v), /\d/.test(v), /[^A-Za-z0-9]/.test(v)].filter(Boolean).length
   : 0);
+
 
 const validators = {
   email: (v, t) => (!v.trim() ? t('errEmailRequired') : !EMAIL_REGEX.test(v.trim()) ? t('errEmailInvalid') : ''),
@@ -152,8 +181,10 @@ const validators = {
 };
 const validateField = (name, value = '', t) => (validators[name] ? validators[name](value, t) : !String(value).trim() ? t('errRequired') : '');
 
+
 const MAX_LENGTH = { email: 254, phone: 20, password: 128, description: 500 };
 const maxLengthOf = (name) => MAX_LENGTH[name] || 100;
+
 
 const cleanValue = (name, v) => {
   const s = String(v ?? '');
@@ -164,19 +195,24 @@ const cleanValue = (name, v) => {
   return base.replace(/\s+/g, ' ');
 };
 
+
 const isCanceled = (err) => err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError' || err?.name === 'AbortError';
+
 
 const safeMessage = (err, fallback) => {
   const m = err?.response?.data?.message;
   return typeof m === 'string' && m.length > 0 && m.length <= MAX_SERVER_MSG ? m : fallback;
 };
 
+
 export const f = (name, label, icon, placeholder = label, extra = {}) => ({ name, label, icon, placeholder, ...extra });
 export const NAME_F = (ac) => f('name', 'fullName', FiUser, 'fullName', { autoComplete: ac });
 export const EMAIL_F = f('email', 'email', FiMail, 'phEmail', { type: 'email', autoComplete: 'email', autoCapitalize: 'none', spellCheck: false });
 export const PHONE_F = f('phone', 'phone', FiPhone, 'phone', { type: 'tel', autoComplete: 'tel', inputMode: 'tel' });
 
+
 const Spinner = () => <span aria-hidden="true" className="inline-block h-4 w-4 flex-shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />;
+
 
 const InlineError = memo(({ message }) => (
   <div role="alert" className="au-err flex items-start gap-2 text-[color:var(--err)]">
@@ -185,11 +221,13 @@ const InlineError = memo(({ message }) => (
   </div>
 ));
 
+
 const FieldError = memo(({ id, role, children }) => (
   <p id={id} role={role} className="au-err flex items-center gap-1 text-xs font-bold text-[color:var(--err)]">
     <FiAlertTriangle aria-hidden="true" className="h-3 w-3 flex-shrink-0" />{children}
   </p>
 ));
+
 
 const StrengthMeter = memo(({ score }) => (
   <div className="flex gap-1.5" aria-hidden="true">
@@ -202,14 +240,15 @@ const StrengthMeter = memo(({ score }) => (
   </div>
 ));
 
+
 const AuthInput = memo(({ id, label, icon: Icon, error, trailing, ...rest }) => (
-  <div className="space-y-1.5">
+  <div className="w-full space-y-1.5">
     {label && <label htmlFor={id} className="block text-xs font-extrabold uppercase tracking-wide">{label}</label>}
     <div className={`${FIELD} ${trailing ? 'pe-2' : 'pe-3'} ${rest.disabled ? 'opacity-60' : ''} ${error ? FIELD_BAD : FIELD_OK}`}>
       {Icon && <Icon aria-hidden="true" className="h-4 w-4 flex-shrink-0 text-[color:var(--icon)]" />}
       <input
         id={id} aria-invalid={!!error} aria-describedby={error ? `${id}-err` : undefined}
-        className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60"
+        className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60 sm:text-base"
         {...rest}
       />
       {trailing}
@@ -218,13 +257,14 @@ const AuthInput = memo(({ id, label, icon: Icon, error, trailing, ...rest }) => 
   </div>
 ));
 
+
 const SelectField = memo(({ id, label, icon: Icon, error, children, ...rest }) => (
-  <div className="space-y-1.5">
+  <div className="w-full space-y-1.5">
     <label htmlFor={id} className="block text-xs font-extrabold uppercase tracking-wide">{label}</label>
     <div className={`${FIELD} relative pe-3 ${rest.disabled ? 'opacity-60' : ''} ${error ? FIELD_BAD : FIELD_OK}`}>
       <Icon aria-hidden="true" className="h-4 w-4 flex-shrink-0 text-[color:var(--icon)]" />
       <select id={id} aria-invalid={!!error} aria-describedby={error ? `${id}-err` : undefined}
-        className="min-w-0 flex-1 cursor-pointer appearance-none bg-transparent pe-6 text-sm font-semibold outline-none" {...rest}>
+        className="min-w-0 flex-1 cursor-pointer appearance-none bg-transparent pe-6 text-sm font-semibold outline-none sm:text-base" {...rest}>
         {children}
       </select>
       <FiChevronDown aria-hidden="true" className="pointer-events-none absolute end-3 h-4 w-4" />
@@ -233,12 +273,14 @@ const SelectField = memo(({ id, label, icon: Icon, error, children, ...rest }) =
   </div>
 ));
 
+
 const EyeToggle = memo(({ shown, onToggle, t }) => (
   <button type="button" onClick={onToggle} aria-label={shown ? t('hidePassword') : t('showPassword')} aria-pressed={shown}
     className={`flex h-8 w-8 flex-shrink-0 cursor-pointer items-center justify-center rounded-md text-[color:var(--icon)] transition-transform duration-150 active:scale-90 ${FOCUS}`}>
     {shown ? <FiEyeOff className="h-4 w-4" /> : <FiEye className="h-4 w-4" />}
   </button>
 ));
+
 
 const OTPStep = memo(({ email, onSuccess, onBack, t, darkMode }) => {
   const [otp, setOtp] = useState(EMPTY_OTP);
@@ -251,9 +293,12 @@ const OTPStep = memo(({ email, onSuccess, onBack, t, darkMode }) => {
   const attemptsRef = useRef(0);
   const lockTimer = useRef();
 
+
   const otpCode = useMemo(() => otp.join(''), [otp]);
 
+
   useEffect(() => () => { abortRef.current?.abort(); clearTimeout(lockTimer.current); }, []);
+
 
   const change = useCallback((i, v) => {
     if (!/^\d*$/.test(v)) return;
@@ -262,9 +307,11 @@ const OTPStep = memo(({ email, onSuccess, onBack, t, darkMode }) => {
     if (v && i < OTP_LEN - 1) inputsRef.current[i + 1]?.focus();
   }, []);
 
+
   const keyDown = useCallback((i, e) => {
     if (e.key === 'Backspace' && !e.currentTarget.value && i > 0) inputsRef.current[i - 1]?.focus();
   }, []);
+
 
   const paste = useCallback((e) => {
     const digits = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LEN);
@@ -276,6 +323,7 @@ const OTPStep = memo(({ email, onSuccess, onBack, t, darkMode }) => {
     setError('');
     inputsRef.current[Math.min(digits.length, OTP_LEN - 1)]?.focus();
   }, []);
+
 
   const verify = useCallback(async () => {
     if (busyRef.current || locked) return;
@@ -306,16 +354,17 @@ const OTPStep = memo(({ email, onSuccess, onBack, t, darkMode }) => {
     }
   }, [otpCode, email, onSuccess, t, locked]);
 
+
   return (
-    <div className="au-pop space-y-4">
+    <div className="au-pop w-full space-y-4 sm:space-y-5">
       <div className="space-y-3 text-center">
-        <span className={`${ICON_TILE} mx-auto h-16 w-16`}><FiShield aria-hidden="true" className="h-8 w-8" /></span>
+        <span className={`${ICON_TILE} mx-auto h-14 w-14 sm:h-16 sm:w-16`}><FiShield aria-hidden="true" className="h-7 w-7 sm:h-8 sm:w-8" /></span>
         <div>
-          <h3 className="text-lg font-extrabold uppercase"><span className={darkMode ? 'au-hl-dark' : 'au-hl'}>{t('otpTitle')}</span></h3>
-          <p className="mt-3 text-sm font-medium text-[color:var(--mut)]">{t('otpSent')} <b className="break-all text-[color:var(--icon)]" dir="ltr">{email}</b></p>
+          <h3 className="text-lg font-extrabold uppercase sm:text-xl"><span className={darkMode ? 'au-hl-dark' : 'au-hl'}>{t('otpTitle')}</span></h3>
+          <p className="mx-auto mt-3 max-w-full break-words text-sm font-medium text-[color:var(--mut)] sm:text-base">{t('otpSent')} <b className="break-all text-[color:var(--icon)]" dir="ltr">{email}</b></p>
         </div>
       </div>
-      <div className="flex justify-center gap-1.5 sm:gap-2" dir="ltr" onPaste={paste}>
+      <div className="au-otp-grid flex w-full justify-center gap-1.5 sm:gap-2" dir="ltr" onPaste={paste}>
         {otp.map((d, i) => (
           <input key={i} ref={(el) => { inputsRef.current[i] = el; }} type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={1}
             value={d} aria-label={t('digit', { n: i + 1 })} autoFocus={i === 0} disabled={locked}
@@ -323,25 +372,27 @@ const OTPStep = memo(({ email, onSuccess, onBack, t, darkMode }) => {
             className={`${OTP_BOX} ${error ? 'au-shake border-[color:var(--err)] [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--err)]' : 'border-[color:var(--ink)] [box-shadow:calc(var(--dx)*3px)_3px_0_0_var(--sh)]'}`} />
         ))}
       </div>
-      {error && <p role="alert" className="au-err text-center text-xs font-bold text-[color:var(--err)]">{error}</p>}
-      <button type="button" onClick={verify} disabled={loading || locked || otpCode.length !== OTP_LEN} className={`${PRIMARY} w-full justify-center px-4 py-3 text-sm uppercase`}>
+      {error && <p role="alert" className="au-err text-center text-xs font-bold text-[color:var(--err)] sm:text-sm">{error}</p>}
+      <button type="button" onClick={verify} disabled={loading || locked || otpCode.length !== OTP_LEN} className={`${PRIMARY} w-full justify-center px-4 py-3 text-sm uppercase sm:text-base`}>
         {loading ? <><Spinner /> {t('verifying')}</> : t('verify')}
       </button>
-      <button type="button" onClick={onBack} className={`${LINK} text-sm`}>
+      <button type="button" onClick={onBack} className={`${LINK} text-sm sm:text-base`}>
         <FiArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" /> {t('back')}
       </button>
     </div>
   );
 });
 
+
 const SignupForm = memo(({ cfg, values, errors, touched, onChange, onBlur, onSubmit, loading, showPw, onTogglePw, t, language, logoFile, onLogoChange }) => {
   const errOf = (n) => (touched[n] ? errors[n] || '' : '');
   const pwToggle = useMemo(() => <EyeToggle shown={showPw} onToggle={onTogglePw} t={t} />, [showPw, onTogglePw, t]);
   const score = useMemo(() => strengthOf(values.password), [values.password]);
 
+
   return (
-    <form onSubmit={onSubmit} noValidate autoComplete="on" className="au-pop space-y-4" aria-busy={loading}>
-      <div className="grid gap-4 sm:grid-cols-2">
+    <form onSubmit={onSubmit} noValidate autoComplete="on" className="au-pop w-full space-y-4 sm:space-y-5" aria-busy={loading}>
+      <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
         {cfg.fields.map(({ name, label, icon, placeholder, type = 'text', autoComplete, options, ...extra }) => {
           const id = `${cfg.role}-${name}`;
           const error = errOf(name);
@@ -363,14 +414,16 @@ const SignupForm = memo(({ cfg, values, errors, touched, onChange, onBlur, onSub
         })}
       </div>
 
+
       {cfg.withLogo && (
-        <div className="space-y-1.5">
+        <div className="w-full space-y-1.5">
           <label htmlFor="shop-logo" className="block text-xs font-extrabold uppercase tracking-wide">{getLogoT(language).label}</label>
           <LogoDropzone id="shop-logo" file={logoFile} onChange={onLogoChange} disabled={loading} language={language} />
         </div>
       )}
 
-      <div className="space-y-2.5">
+
+      <div className="w-full space-y-2.5">
         <AuthInput id={`${cfg.role}-password`} name="password" label={t('passwordLabel')} icon={FiLock}
           type={showPw ? 'text' : 'password'} value={values.password} placeholder={t('passwordPlaceholder')} autoComplete="new-password"
           maxLength={maxLengthOf('password')} disabled={loading}
@@ -378,27 +431,32 @@ const SignupForm = memo(({ cfg, values, errors, touched, onChange, onBlur, onSub
         {values.password && <StrengthMeter score={score} />}
       </div>
 
+
       {errors.general && <InlineError message={errors.general} />}
-      <button type="submit" disabled={loading} className={`${PRIMARY} w-full justify-center px-4 py-3 text-sm uppercase sm:text-base`}>
+      <button type="submit" disabled={loading} className={`${PRIMARY} w-full justify-center px-4 py-3 text-sm uppercase sm:py-3.5 sm:text-base`}>
         {loading ? <><Spinner /> {t('creating')}</> : (SIGNUP_LABEL[language] || SIGNUP_LABEL.en)}
       </button>
     </form>
   );
 });
 
+
 const SignupIllustration = memo(() => (
-  <svg viewBox="0 0 480 480" aria-hidden="true" focusable="false" className="aspect-square w-full">
+  <svg viewBox="0 0 480 480" aria-hidden="true" focusable="false" className="au-illustration aspect-square w-full max-w-full">
     <circle cx="240" cy="250" r="205" className="fill-[color:var(--acc)] opacity-15" />
     <circle cx="240" cy="250" r="160" className="fill-none stroke-[color:var(--ink)] opacity-25" strokeWidth="2" strokeDasharray="3 11" strokeLinecap="round" />
+
 
     <g className="au-float">
       <rect x="100" y="86" width="290" height="330" rx="28" className="fill-[color:var(--ink)]" />
       <rect x="90" y="76" width="290" height="330" rx="28" className="fill-[color:var(--card)] stroke-[color:var(--ink)]" strokeWidth="3.5" />
 
+
       <circle cx="122" cy="106" r="6" className="fill-[color:var(--acc)] stroke-[color:var(--ink)]" strokeWidth="2" />
       <circle cx="142" cy="106" r="6" className="fill-[color:var(--soft)] stroke-[color:var(--ink)]" strokeWidth="2" />
       <circle cx="162" cy="106" r="6" className="fill-[color:var(--soft)] stroke-[color:var(--ink)]" strokeWidth="2" />
       <path d="M90 128H380" className="stroke-[color:var(--ink)]" strokeWidth="3" />
+
 
       <circle cx="235" cy="170" r="32" className="fill-[color:var(--acc)] stroke-[color:var(--ink)]" strokeWidth="3" />
       <circle cx="235" cy="162" r="10" className="fill-[color:var(--card)] stroke-[color:var(--ink)]" strokeWidth="3" />
@@ -406,29 +464,35 @@ const SignupIllustration = memo(() => (
       <circle cx="263" cy="194" r="13" className="fill-[color:var(--card)] stroke-[color:var(--ink)]" strokeWidth="3" />
       <path d="M263 188V200M257 194H269" className="fill-none stroke-[color:var(--ink)]" strokeWidth="3" strokeLinecap="round" />
 
+
       <rect x="118" y="222" width="234" height="36" rx="11" className="fill-[color:var(--field)] stroke-[color:var(--ink)]" strokeWidth="3" />
       <circle cx="142" cy="235" r="4.5" className="fill-none stroke-[color:var(--ink)]" strokeWidth="2.5" />
       <path d="M133 248C135 241 149 241 151 248" className="fill-none stroke-[color:var(--ink)]" strokeWidth="2.5" strokeLinecap="round" />
       <rect x="166" y="237" width="90" height="6" rx="3" className="fill-[color:var(--ink)] opacity-25" />
+
 
       <rect x="118" y="266" width="234" height="36" rx="11" className="fill-[color:var(--field)] stroke-[color:var(--ink)]" strokeWidth="3" />
       <rect x="132" y="277" width="20" height="15" rx="3" className="fill-none stroke-[color:var(--ink)]" strokeWidth="2.5" />
       <path d="M133 279L142 286L151 279" className="fill-none stroke-[color:var(--ink)]" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
       <rect x="166" y="281" width="110" height="6" rx="3" className="fill-[color:var(--ink)] opacity-25" />
 
+
       <rect x="118" y="310" width="234" height="36" rx="11" className="fill-[color:var(--field)] stroke-[color:var(--ink)]" strokeWidth="3" />
       <rect x="133" y="325" width="18" height="12" rx="3" className="fill-[color:var(--acc)] stroke-[color:var(--ink)]" strokeWidth="2.5" />
       <path d="M137 325V321a5 5 0 0 1 10 0V325" className="fill-none stroke-[color:var(--ink)]" strokeWidth="2.5" strokeLinecap="round" />
       {[172, 188, 204, 220, 236].map((cx) => <circle key={cx} cx={cx} cy="328" r="3.5" className="fill-[color:var(--ink)]" />)}
+
 
       {[0, 1, 2, 3].map((i) => (
         <rect key={i} x={118 + i * 60} y="354" width="54" height="8" rx="4"
           className={`stroke-[color:var(--ink)] ${i < 3 ? 'fill-[color:var(--acc)]' : 'fill-[color:var(--soft)]'}`} strokeWidth="2" />
       ))}
 
+
       <rect x="118" y="370" width="234" height="28" rx="11" className="fill-[color:var(--acc)] stroke-[color:var(--ink)]" strokeWidth="3" />
       <rect x="193" y="380" width="84" height="7" rx="3.5" className="fill-[color:var(--ink)] opacity-80" />
     </g>
+
 
     <g transform="translate(396 112)">
       <g className="au-float" style={{ animationDelay: '-1.4s' }}>
@@ -438,6 +502,7 @@ const SignupIllustration = memo(() => (
       </g>
     </g>
 
+
     <g transform="translate(78 378)">
       <g className="au-float" style={{ animationDelay: '-2.6s' }}>
         <circle cx="5" cy="5" r="36" className="fill-[color:var(--ink)]" />
@@ -446,6 +511,7 @@ const SignupIllustration = memo(() => (
         <path d="M-16 -9L0 3L16 -9" className="fill-none stroke-[color:var(--ink)]" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
       </g>
     </g>
+
 
     <g transform="translate(412 340)">
       <g className="au-float" style={{ animationDelay: '-3.6s' }}>
@@ -458,6 +524,7 @@ const SignupIllustration = memo(() => (
       </g>
     </g>
 
+
     {[[58, 150], [432, 232], [140, 452]].map(([x, y]) => (
       <path key={`${x}-${y}`} d={`M${x} ${y - 9}V${y + 9}M${x - 9} ${y}H${x + 9}`} className="fill-none stroke-[color:var(--ink)]" strokeWidth="3" strokeLinecap="round" />
     ))}
@@ -466,11 +533,13 @@ const SignupIllustration = memo(() => (
   </svg>
 ));
 
+
 export const SignupPage = memo(({ config, darkMode = false }) => {
   const language = useAppLanguage();
   const t = getT(language);
   const isAr = language === 'ar';
   const navigate = useNavigate();
+
 
   const names = useMemo(() => [...config.fields.map((x) => x.name), 'password'], [config]);
   const [values, setValues] = useState(() => Object.fromEntries(names.map((n) => [n, ''])));
@@ -485,8 +554,10 @@ export const SignupPage = memo(({ config, darkMode = false }) => {
   const abortRef = useRef(null);
   const leaveTimer = useRef();
 
+
   useEffect(() => { document.title = t('pageTitle'); }, [t]);
   useEffect(() => () => { abortRef.current?.abort(); clearTimeout(leaveTimer.current); }, []);
+
 
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
@@ -494,11 +565,13 @@ export const SignupPage = memo(({ config, darkMode = false }) => {
     setErrors((p) => ({ ...p, [name]: validateField(name, value, t), general: '' }));
   }, [t]);
 
+
   const handleBlur = useCallback((e) => {
     const { name, value } = e.target;
     setTouched((p) => ({ ...p, [name]: true }));
     setErrors((p) => ({ ...p, [name]: validateField(name, value, t) }));
   }, [t]);
+
 
   const handleLogo = useCallback((file) => {
     if (file && (!LOGO_TYPES.includes(file.type) || file.size > LOGO_MAX_BYTES)) {
@@ -507,6 +580,7 @@ export const SignupPage = memo(({ config, darkMode = false }) => {
     }
     setLogoFile(file || null);
   }, [t]);
+
 
   const register = useCallback(async (payload, email) => {
     if (busyRef.current) return;
@@ -545,6 +619,7 @@ export const SignupPage = memo(({ config, darkMode = false }) => {
     }
   }, [config.endpoint, t, language]);
 
+
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
     if (busyRef.current) return;
@@ -557,6 +632,7 @@ export const SignupPage = memo(({ config, darkMode = false }) => {
     register(config.toPayload ? config.toPayload(cleaned, logoFile) : cleaned, cleaned.email);
   }, [names, values, logoFile, register, t, config]);
 
+
   const togglePw = useCallback(() => setShowPw((p) => !p), []);
   const handleOtpSuccess = useCallback(() => {
     clearTimeout(leaveTimer.current);
@@ -564,56 +640,63 @@ export const SignupPage = memo(({ config, darkMode = false }) => {
   }, [navigate]);
   const handleOtpBack = useCallback(() => { setOtpStep(false); setPendingEmail(''); }, []);
 
+
   return (
     <div
       dir={languageDirection(language)} lang={language}
-      className={`au-root au-pattern nb ${darkMode ? 'au-pattern-dark nb-dark' : ''} ${THEME[darkMode ? 'dark' : 'light']} relative min-h-screen overflow-x-hidden bg-[color:var(--page)] text-[color:var(--txt)]`}
+      className={`au-root au-pattern nb ${darkMode ? 'au-pattern-dark nb-dark' : ''} ${THEME[darkMode ? 'dark' : 'light']} relative min-h-dvh w-full overflow-x-hidden bg-[color:var(--page)] text-[color:var(--txt)]`}
     >
       <Toaster darkMode={darkMode} />
 
+
       <header className="fixed inset-x-0 top-0 z-40 bg-[color:var(--page)]">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between gap-2 px-3 sm:h-16 sm:gap-3 sm:px-6 lg:px-8">
           <Link to="/" aria-label="Tech Restore" className={`flex-shrink-0 rounded-md ${FOCUS}`}>
-            <img src={logo} alt="Tech Restore" className="h-9 w-auto" width={120} height={36} decoding="async" />
+            <img src={logo} alt="Tech Restore" className="h-8 w-auto sm:h-9" width={120} height={36} decoding="async" />
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-shrink-0 items-center gap-2 sm:gap-3">
             <span className="hidden text-sm font-semibold text-[color:var(--mut)] sm:block">{t('haveAccount')}</span>
-            <Link to="/login" className={`${PRIMARY} justify-center px-4 py-2 text-xs uppercase sm:text-sm`}>{t('signIn')}</Link>
+            <Link to="/login" className={`${PRIMARY} justify-center px-3 py-2 text-[11px] uppercase sm:px-4 sm:text-xs lg:text-sm`}>{t('signIn')}</Link>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-6xl items-start gap-8 px-4 pb-12 pt-24 sm:px-6 md:grid-cols-2 lg:gap-14 lg:px-8 lg:pt-28">
-        <div className="au-in hidden md:sticky md:top-28 md:block">
-          <div className="mx-auto max-w-lg p-6">
-            <SignupIllustration />
-          </div>
-        </div>
 
-        <div className="mx-auto w-full max-w-xl space-y-6 md:mx-0">
-          <div className="au-in">
-            <h1 className={`text-3xl font-extrabold [text-wrap:balance] sm:text-4xl lg:text-5xl ${isAr ? 'leading-[1.4] tracking-normal' : 'leading-[1.15] tracking-[-0.04em]'}`}>
-              {t('titleBefore')}{' '}<span className={darkMode ? 'au-hl-dark' : 'au-hl'}>{t('titleAccent')}</span>
-            </h1>
-            <p className="mt-4 text-base font-medium leading-relaxed text-[color:var(--mut)] sm:text-lg">{t('subtitle')}</p>
+      <main className="au-mobile-center mx-auto w-full max-w-6xl px-3 pb-8 sm:px-6 sm:pb-12 md:block md:min-h-0 md:pt-24 lg:px-8 lg:pt-28">
+        <div className="mx-auto grid w-full max-w-full grid-cols-1 items-start gap-6 sm:gap-8 md:grid-cols-2 lg:gap-14">
+          <div className="au-in order-2 hidden mt-20 md:order-1 md:sticky md:top-28 md:block">
+            <div className="mx-auto w-full max-w-lg p-4 sm:p-6">
+              <SignupIllustration />
+            </div>
           </div>
 
-          <div style={{ '--i': 1 }} className={`au-in space-y-5 p-4 sm:p-6 ${CARD}`}>
-            {otpStep ? (
-              <OTPStep email={pendingEmail} onSuccess={handleOtpSuccess} onBack={handleOtpBack} t={t} darkMode={darkMode} />
-            ) : (
-              <>
-                <SignupForm
-                  cfg={config} values={values} errors={errors} touched={touched}
-                  onChange={handleChange} onBlur={handleBlur} onSubmit={handleSubmit} loading={loading}
-                  showPw={showPw} onTogglePw={togglePw} t={t}
-                  language={language} logoFile={logoFile} onLogoChange={handleLogo}
-                />
-                <p className="text-center text-sm font-semibold text-[color:var(--mut)]">
-                  {t('haveAccount')} <Link to="/login" className={LINK}>{t('loginHere')}</Link>
-                </p>
-              </>
-            )}
+
+          <div className="order-1 mx-auto w-full mt-20 max-w-full space-y-5 md:order-2 md:max-w-xl sm:space-y-6">
+            <div className="au-in text-center md:text-start">
+              <h1 className={`mx-auto max-w-2xl text-2xl font-extrabold [text-wrap:balance] sm:text-3xl lg:text-4xl xl:text-5xl md:mx-0 ${isAr ? 'leading-[1.4] tracking-normal' : 'leading-[1.15] tracking-[-0.04em]'}`}>
+                {t('titleBefore')}{' '}<span className={darkMode ? 'au-hl-dark' : 'au-hl'}>{t('titleAccent')}</span>
+              </h1>
+              <p className="mx-auto mt-3 max-w-xl text-sm font-medium leading-relaxed text-[color:var(--mut)] sm:mt-4 sm:text-base lg:text-lg md:mx-0">{t('subtitle')}</p>
+            </div>
+
+
+            <div style={{ '--i': 1 }} className={`au-in mx-auto w-full max-w-md space-y-4 rounded-2xl p-3.5 sm:max-w-xl sm:space-y-5 sm:p-6 md:mx-0 ${CARD}`}>
+              {otpStep ? (
+                <OTPStep email={pendingEmail} onSuccess={handleOtpSuccess} onBack={handleOtpBack} t={t} darkMode={darkMode} />
+              ) : (
+                <>
+                  <SignupForm
+                    cfg={config} values={values} errors={errors} touched={touched}
+                    onChange={handleChange} onBlur={handleBlur} onSubmit={handleSubmit} loading={loading}
+                    showPw={showPw} onTogglePw={togglePw} t={t}
+                    language={language} logoFile={logoFile} onLogoChange={handleLogo}
+                  />
+                  <p className="text-center text-xs font-semibold text-[color:var(--mut)] sm:text-sm">
+                    {t('haveAccount')} <Link to="/login" className={LINK}>{t('loginHere')}</Link>
+                  </p>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </main>

@@ -28,61 +28,73 @@ const MapPicker = lazy(() => import('./AccountMap'));
 const prefetchMap = () => import('./AccountMap');
 
 const NB_EXTRA_CSS = `
-.nb-dark input{color-scheme:dark}
-.nb-btn-d{background:#e11d48;color:#fff;border-color:transparent}
-.nb-btn-o{background:#ea580c;color:#fff;border-color:transparent}
-.nb-menu{background:var(--nb-card);color:var(--nb-ink);border:1px solid var(--nb-line2);border-radius:.75rem;box-shadow:0 12px 28px rgba(0,0,0,.18)}
-.nb-opt{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;font-size:12px;font-weight:700;text-align:start;cursor:pointer}
-.nb-opt-active{background:var(--nb-gray)}
+.nb-btn-d{background:#fb7185;color:#000;border:3px solid #000;box-shadow:var(--nb-sh4,4px 4px 0 0 #000)}
+.nb-btn-o{background:#fb923c;color:#000;border:3px solid #000;box-shadow:var(--nb-sh4,4px 4px 0 0 #000)}
+@media (hover:hover){.nb-btn-d:hover:not(:disabled){background:#fda4af;color:#000;border-color:#000}.nb-btn-o:hover:not(:disabled){background:#fdba74;color:#000;border-color:#000}}
+.nb-menu{background:var(--nb-band,var(--nb-card));color:var(--nb-band-tx,var(--nb-ink));border:3px solid var(--nb-bd,#000);border-radius:16px;box-shadow:var(--nb-sh4,4px 4px 0 0 #000)}
+.nb-opt{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;font-size:12px;font-weight:600;text-align:start;cursor:pointer}
+.nb-opt-active{background:var(--nb-band-hi,var(--nb-gray))}
 .nb-opt[aria-selected=true]{background:var(--nb-btn);color:var(--nb-on)}
+.nb-chip{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid #000;border-radius:8px;background:var(--nb-btn);color:var(--nb-on)}
+.nb-row{content-visibility:auto;contain-intrinsic-size:auto 420px}
+.nb-row-s{content-visibility:auto;contain-intrinsic-size:auto 280px}
+.nb-sk{background:linear-gradient(90deg,var(--nb-gray) 25%,color-mix(in srgb,var(--nb-gray) 45%,var(--nb-card)) 50%,var(--nb-gray) 75%);background-size:220% 100%;border-radius:8px;animation:nbShimmer 1.5s linear infinite}
+@keyframes nbShimmer{from{background-position:120% 0}to{background-position:-120% 0}}
 @keyframes nbPop{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:none}}
 .nb-pop{animation:nbPop .14s ease-out both;transform-origin:top}
-@media (prefers-reduced-motion:reduce){.nb-pop{animation:none}}
+.nb-swal{background:#fff!important;color:#052e1e!important;border:3px solid #000!important;border-radius:14px!important;box-shadow:4px 4px 0 0 #000!important;font-family:'Poppins',ui-sans-serif,system-ui,sans-serif!important}
+@media (prefers-reduced-motion:reduce){.nb-pop,.nb-sk{animation:none}}
 `;
 
 const NB_CSS = `
-.nb{--nb-bg:#f3f4f6;--nb-card:#ffffff;--nb-ink:#111827;--nb-muted:#6b7280;--nb-line:#e5e7eb;--nb-line2:#d1d5db;--nb-shadow:rgba(17,24,39,.08);--nb-gray:#f3f4f6;--nb-accent:#059669;--nb-btn:#059669;--nb-on:#ffffff;background:var(--nb-bg);color:var(--nb-ink)}
-.nb-dark{--nb-bg:#141414;--nb-card:#1e1e1e;--nb-ink:#ffffff;--nb-muted:#a3a3a3;--nb-line:rgba(255,255,255,.12);--nb-line2:rgba(255,255,255,.22);--nb-shadow:rgba(0,0,0,.4);--nb-gray:#262626;--nb-accent:#34d399;--nb-btn:#10b981;--nb-on:#022c22}
-.nb .border-2{border-width:1px}
-.nb .border-t-2{border-top-width:1px}
-.nb .border-b-2{border-bottom-width:1px}
-.nb .divide-y-2>:not([hidden])~:not([hidden]){border-top-width:1px}
-.nb .uppercase{text-transform:none}
-.nb .uppercase[class*="text-[9px]"],.nb .uppercase[class*="text-[10px]"],.nb .uppercase[class*="text-[11px]"]{text-transform:uppercase}
-.nb-bg{background:var(--nb-bg)}
+.nb{--dx:1;--nb-bg:#ffffff;--nb-pgtx:#052e1e;--nb-pgmu:rgba(5,46,30,.68);--nb-card:#ffffff;--nb-ink:#052e1e;--nb-muted:rgba(5,46,30,.68);--nb-line:#e5e7eb;--nb-line2:#000000;--nb-bd:#000000;--nb-shd:#000000;--nb-gray:#f3f4f6;--nb-accent:#059669;--nb-btn:#39ff88;--nb-btn2:#7dffb0;--nb-on:#022c22;--nb-ring:#059669;--nb-scrim:rgba(0,0,0,.6);--nb-band:#047857;--nb-band-tx:#ffffff;--nb-band-mu:rgba(255,255,255,.78);--nb-band-hi:rgba(255,255,255,.16);
+--nb-sh2:calc(var(--dx)*2px) 2px 0 0 var(--nb-shd);--nb-sh3:calc(var(--dx)*3px) 3px 0 0 var(--nb-shd);--nb-sh4:calc(var(--dx)*4px) 4px 0 0 var(--nb-shd);--nb-sh8:calc(var(--dx)*8px) 8px 0 0 var(--nb-shd);
+background:var(--nb-bg);color:var(--nb-pgtx);color-scheme:light;font-family:'Poppins',ui-sans-serif,system-ui,-apple-system,'Segoe UI','Cairo',sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.nb[lang=ar]{font-family:'Cairo','Poppins',ui-sans-serif,system-ui,sans-serif}
+.nb[dir=rtl]{--dx:-1}
+.nb-dark{--nb-bg:#022c22;--nb-pgtx:#39ff88;--nb-pgmu:rgba(57,255,136,.78);--nb-card:#1c1c1e;--nb-ink:#ffffff;--nb-muted:rgba(255,255,255,.66);--nb-line:rgba(255,255,255,.16);--nb-line2:rgba(255,255,255,.16);--nb-bd:rgba(255,255,255,.16);--nb-shd:#0b4a35;--nb-gray:#2a2a2e;--nb-accent:#39ff88;--nb-ring:#39ff88;--nb-scrim:rgba(0,0,0,.72);--nb-band:#022c22;--nb-band-tx:#39ff88;--nb-band-mu:rgba(57,255,136,.78);--nb-band-hi:rgba(57,255,136,.14);color-scheme:dark}
+.nb[lang=ar] *{letter-spacing:0!important}
+.nb button,.nb input,.nb textarea{font-family:inherit}
 .nb-gray{background:var(--nb-gray)}
 .nb-muted{color:var(--nb-muted)}
+.nb-pgmu{color:var(--nb-pgmu)}
 .nb-ic{color:var(--nb-accent)}
 .nb-line{border-color:var(--nb-line)}
-.nb-line.border-2{border-radius:.6rem}
-.nb-card{background:var(--nb-card);border:1px solid var(--nb-line);border-radius:.875rem;box-shadow:0 1px 2px var(--nb-shadow);transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
-@media (hover:hover){.nb-lift:hover{transform:translateY(-2px);box-shadow:0 10px 24px var(--nb-shadow);border-color:var(--nb-line2)}}
-.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:1px solid var(--nb-line2);border-radius:.6rem;font-weight:700;cursor:pointer;transition:transform .15s ease,background-color .15s ease,filter .15s ease,opacity .15s ease}
-.nb-btn:not(.nb-btn-a):not(.nb-btn-on):not(.nb-btn-d):not(.nb-btn-o):not(.nb-tab):hover:not(:disabled){background:var(--nb-gray)}
-.nb-btn.nb-tab:not(.nb-btn-on){background:transparent;border-color:transparent}
-.nb-btn.nb-tab:not(.nb-btn-on):hover:not(:disabled){background:var(--nb-gray)}
-.nb-btn:active:not(:disabled){transform:scale(.97)}
+.nb-bd{border-color:var(--nb-bd)}
+.nb-card{background:var(--nb-card);color:var(--nb-ink);border:3px solid var(--nb-bd);border-radius:16px;box-shadow:var(--nb-sh4)}
+.nb-panel{background:var(--nb-card);color:var(--nb-ink);border:3px solid var(--nb-bd);border-radius:16px;box-shadow:var(--nb-sh4)}
+.nb-dot{background:var(--nb-card);color:var(--nb-ink);border:3px dashed var(--nb-line2);border-radius:16px}
+.nb-big{box-shadow:var(--nb-sh8)}
+.nb-band{background:var(--nb-band);color:var(--nb-band-tx);border-bottom:3px solid #000}
+.nb-band .nb-muted{color:var(--nb-band-mu)}
+.nb-head{background:var(--nb-band);color:var(--nb-band-tx);border:2px solid #000;border-radius:12px}
+.nb-head .nb-muted{color:var(--nb-band-mu)}
+.nb-chip-bad{background:#fb7185;color:#000}
+.nb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-bd);border-radius:12px;box-shadow:var(--nb-sh3);font-weight:700;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,background-color .15s ease,color .15s ease}
+@media (hover:hover){.nb-btn:hover:not(:disabled){background:var(--nb-btn);color:var(--nb-on);border-color:#000;box-shadow:var(--nb-sh4);transform:translate3d(0,-1px,0)}}
+.nb-btn:active:not(:disabled){transform:translate3d(0,2px,0);box-shadow:none}
 .nb-btn:disabled{opacity:.45;cursor:not-allowed}
-.nb-btn-a,.nb-btn-on{background:var(--nb-btn);color:var(--nb-on);border-color:transparent}
-.nb-btn-a:hover:not(:disabled),.nb-btn-on:hover:not(:disabled),.nb-btn-d:hover:not(:disabled),.nb-btn-o:hover:not(:disabled){filter:brightness(1.07)}
-.nb-btn:focus-visible,.nb-focus:focus-visible,.nb-navitem:focus-visible{outline:3px solid var(--nb-btn);outline-offset:2px}
-.nb-field:focus-within{border-color:var(--nb-btn);box-shadow:0 0 0 3px rgba(16,185,129,.2)}
+.nb-btn-a,.nb-btn-on{background:var(--nb-btn);color:var(--nb-on);border:3px solid #000;box-shadow:var(--nb-sh4)}
+@media (hover:hover){.nb-btn-a:hover:not(:disabled),.nb-btn-on:hover:not(:disabled){background:var(--nb-btn2)}}
+.nb-btn:focus-visible,.nb-focus:focus-visible,.nb-navitem:focus-visible{outline:3px solid var(--nb-ring);outline-offset:2px}
+.nb-pgfocus:focus-visible{outline:3px solid var(--nb-pgtx);outline-offset:2px}
+.nb-field{background:var(--nb-card);color:var(--nb-ink);border:2px solid var(--nb-bd);border-radius:12px;box-shadow:var(--nb-sh3);transition:box-shadow .15s ease}
+@media (hover:hover){.nb-field:hover{box-shadow:var(--nb-sh4)}}
+.nb-field:focus-within{outline:3px solid var(--nb-ring);outline-offset:2px}
 .nb-flip{display:inline-block}
 .nb[dir=rtl] .nb-flip{transform:scaleX(-1)}
-.nb-field{background:var(--nb-card);color:var(--nb-ink);border:1px solid var(--nb-line2);border-radius:.75rem;transition:box-shadow .15s ease,border-color .15s ease}
-.nb-dot{background:var(--nb-card);color:var(--nb-ink);border:1px dashed var(--nb-line2);border-radius:1rem}
-.nb-panel{background:var(--nb-card);border:1px solid var(--nb-line);border-radius:1.25rem}
-.nb-navitem{display:flex;width:100%;align-items:center;gap:14px;padding:12px 14px;border-radius:.75rem;font-size:14px;font-weight:700;text-align:start;cursor:pointer;color:var(--nb-ink);transition:background-color .15s ease}
+.nb-navitem{display:flex;width:100%;align-items:center;gap:14px;padding:11px 14px;border:2px solid transparent;border-radius:12px;font-size:14px;font-weight:700;text-align:start;cursor:pointer;color:var(--nb-ink);transition:background-color .15s ease}
 .nb-navitem:hover{background:var(--nb-gray)}
-.nb-navitem[aria-current=page]{background:color-mix(in srgb,var(--nb-accent) 14%,transparent);font-weight:800}
+.nb-navitem[aria-current=page]{background:var(--nb-btn);color:var(--nb-on);border-color:#000;font-weight:800}
+.nb-navitem[aria-current=page] .nb-ic{color:var(--nb-on)}
 ${NB_EXTRA_CSS}
-@media (prefers-reduced-motion:reduce){.nb-card,.nb-btn,.nb-field,.nb-navitem{transition:none}}
+@media (prefers-reduced-motion:reduce){.nb-btn,.nb-field,.nb-navitem{transition:none}.nb-btn:hover:not(:disabled){transform:none}}
 `;
 
 const MODAL_MS = 150;
 const MODAL_CSS = `
-@keyframes nbIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-.nb-in{animation:nbIn .24s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*40ms)}
+@keyframes nbIn{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:none}}
+.nb-in{animation:nbIn .28s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*40ms)}
 @keyframes mdlFadeIn{from{opacity:0}to{opacity:1}}
 @keyframes mdlFadeOut{from{opacity:1}to{opacity:0}}
 @keyframes mdlPopIn{from{opacity:0;transform:translate3d(0,14px,0) scale(.97)}to{opacity:1;transform:none}}
@@ -96,8 +108,19 @@ const MODAL_CSS = `
 const STYLE_EL = <style>{`${UI3D_CSS}${LISTING_CSS}${NB_CSS}${MODAL_CSS}`}</style>;
 const REPAIRS_STYLE_EL = <style>{`${NB_EXTRA_CSS}${MODAL_CSS}`}</style>;
 
+if (typeof document !== 'undefined' && !document.getElementById('poppins-orders-font')) {
+  const font = document.createElement('link');
+  font.id = 'poppins-orders-font';
+  font.rel = 'stylesheet';
+  font.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap';
+  font.crossOrigin = 'anonymous';
+  font.referrerPolicy = 'no-referrer';
+  document.head.appendChild(font);
+}
+
 const STAGGER = Array.from({ length: 9 }, (_, i) => ({ '--i': i }));
 const EMPTY_MAP = {};
+const EMPTY_LIST = [];
 const enc = encodeURIComponent;
 
 const shouldRetry = (count, err) => count < 2 && ![400, 401, 403, 404].includes(err?.response?.status);
@@ -175,7 +198,10 @@ const friendlyError = (err, fallback) => {
   if (status >= 500 || /RUNTIME_ERROR|RT_001/i.test(`${raw} ${code}`) || !raw) return fallback || 'Something went wrong. Please try again.';
   return fallback || 'Something went wrong. Please try again.';
 };
-const unwrap = (res) => { const d = res.data?.content ?? res.data ?? []; return Array.isArray(d) ? d : []; };
+const unwrap = (res) => {
+  const d = res.data?.content ?? res.data ?? [];
+  return Array.isArray(d) ? d.filter((o) => o && typeof o === 'object') : [];
+};
 const dayOf = (v) => { const d = new Date(v); return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10); };
 
 const SHORT_FMT = new Intl.DateTimeFormat('en-EG', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -215,7 +241,7 @@ const toSafeSrc = (value) => {
 
 const pickItemImage = (item) => {
   const nested = item?.product || EMPTY_MAP;
-  const arrays = [item?.imageUrls, nested.imageUrls].find(Array.isArray) || [];
+  const arrays = [item?.imageUrls, nested.imageUrls].find(Array.isArray) || EMPTY_LIST;
   const candidates = [...IMAGE_FIELDS.map((k) => item?.[k]), ...IMAGE_FIELDS.map((k) => nested[k]), ...arrays];
   for (const c of candidates) {
     const src = toSafeSrc(c);
@@ -229,14 +255,39 @@ const productIdOf = (item) => {
   return id == null ? '' : String(id);
 };
 
-const enrichOrder = (order, imageMap) => {
-  const items = Array.isArray(order.orderItems) ? order.orderItems : [];
-  return { ...order, orderItems: items.map((it) => ({ ...it, _img: pickItemImage(it) || imageMap[productIdOf(it)] || null })) };
+const decorate = (x, q, priceKey) => ({
+  ...x,
+  _ts: Date.parse(x.createdAt) || 0,
+  _day: dayOf(x.createdAt),
+  _price: Number(x[priceKey]) || 0,
+  _q: q.toLowerCase(),
+});
+
+const buildOrder = (order, imageMap) => {
+  const items = Array.isArray(order.orderItems) ? order.orderItems : EMPTY_LIST;
+  const orderItems = items.map((it) => ({ ...it, _img: pickItemImage(it) || imageMap[productIdOf(it)] || null }));
+  const names = orderItems.map((i) => i.productName || '').join(' ');
+  return decorate({ ...order, orderItems }, `${order.id || ''} ${names}`, 'totalPrice');
+};
+
+const buildRepair = (r) => decorate(r, `${r.shopName || ''} ${r.description || ''} ${r.id || ''}`, 'price');
+
+const useDecorated = (list, dep, build) => {
+  const cache = useRef({ dep, wm: new WeakMap() });
+  return useMemo(() => {
+    if (cache.current.dep !== dep) cache.current = { dep, wm: new WeakMap() };
+    const { wm } = cache.current;
+    return list.map((x) => {
+      let e = wm.get(x);
+      if (!e) { e = build(x, dep); wm.set(x, e); }
+      return e;
+    });
+  }, [list, dep, build]);
 };
 
 const fetchProductImages = (token) => async ({ signal }) => {
   const res = await api.get('/api/products', { headers: { Authorization: `Bearer ${token}` }, signal });
-  const list = res.data?.content || res.data || [];
+  const list = res.data?.content || res.data || EMPTY_LIST;
   const map = {};
   if (!Array.isArray(list)) return map;
   for (const p of list) {
@@ -274,17 +325,16 @@ let swalPromise;
 const loadSwal = () => (swalPromise ||= import('sweetalert2').then((m) => m.default));
 const toast = async ({ icon = 'success', title, text, timer = 2500 }) => {
   const Swal = await loadSwal();
-  Swal.fire({ toast: true, position: 'top-end', icon, title, text, timer, timerProgressBar: true, showConfirmButton: false });
+  Swal.fire({ toast: true, position: 'top-end', icon, title, text, timer, timerProgressBar: true, showConfirmButton: false, customClass: { popup: 'nb-swal' } });
 };
 
 const TILE_TONES = {
-  em: 'bg-emerald-500 text-white', sky: 'bg-sky-500 text-white', vi: 'bg-violet-500 text-white',
-  am: 'bg-amber-400 text-[#04261a]', ro: 'bg-rose-500 text-white', te: 'bg-teal-500 text-white',
+  em: '', sky: '!bg-sky-300', vi: '!bg-violet-300', am: '!bg-amber-300', ro: '!bg-rose-400', te: '!bg-teal-300',
 };
 const BLOB = { sky: 'bg-sky-400', vi: 'bg-violet-400', am: 'bg-amber-400', ro: 'bg-rose-400', em: 'bg-emerald-400', te: 'bg-teal-400' };
 
 const IconTile = memo(({ Icon, tone = 'em', className = 'h-9 w-9', iconClassName = 'h-4 w-4' }) => (
-  <span aria-hidden="true" className={`flex flex-shrink-0 items-center justify-center rounded-lg ${TILE_TONES[tone] || TILE_TONES.em} ${className}`}>
+  <span aria-hidden="true" className={`nb-chip ${TILE_TONES[tone] || ''} ${className}`}>
     <Icon className={iconClassName} />
   </span>
 ));
@@ -296,8 +346,8 @@ const Btn = ({ tone, className = '', children, ...rest }) => (
 
 const PageHead = memo(({ title, subtitle }) => (
   <header className="mb-6">
-    <h1 className="text-3xl font-extrabold leading-[1.2] tracking-[-0.02em] [text-wrap:balance] rtl:tracking-normal sm:text-4xl">{title}</h1>
-    {subtitle && <p className="nb-muted mt-2 text-base font-medium">{subtitle}</p>}
+    <h1 className="text-2xl font-bold leading-[1.2] tracking-tight [text-wrap:balance] rtl:tracking-normal sm:text-3xl">{title}</h1>
+    {subtitle && <p className="nb-pgmu mt-2 text-sm font-medium sm:text-base">{subtitle}</p>}
   </header>
 ));
 
@@ -351,7 +401,7 @@ const NbDropdown = memo(({ value, onChange, options, ariaLabel, className = '', 
         ref={btnRef} type="button" aria-label={ariaLabel} aria-haspopup="listbox" aria-expanded={isOpen} aria-controls={listId}
         aria-activedescendant={isOpen ? `${uid}-o${active}` : undefined}
         onClick={() => setIsOpen((o) => !o)} onKeyDown={onKeyDown}
-        className="nb-field flex h-10 w-full cursor-pointer items-center justify-between gap-2 ps-3 pe-3 text-start text-xs font-bold"
+        className="nb-field flex h-10 w-full cursor-pointer items-center justify-between gap-2 ps-3 pe-3 text-start text-xs font-semibold"
       >
         <span className={`truncate ${current ? '' : 'opacity-60'}`}>{current ? current.label : placeholder}</span>
         <FiChevronDown aria-hidden="true" className={`h-4 w-4 flex-shrink-0 transition-transform duration-150 motion-reduce:transition-none ${isOpen ? 'rotate-180' : ''}`} />
@@ -359,7 +409,7 @@ const NbDropdown = memo(({ value, onChange, options, ariaLabel, className = '', 
       {isOpen && (
         <ul
           ref={listRef} id={listId} role="listbox" aria-label={ariaLabel} tabIndex={-1}
-          className={`nb-menu nb-pop absolute top-full z-30 mt-2 max-h-64 min-w-full overflow-y-auto overscroll-contain py-1 ${align === 'end' ? 'end-0' : 'start-0'}`}
+          className={`nb-menu nb-pop absolute top-full z-30 mt-3 max-h-64 min-w-full overflow-y-auto overscroll-contain py-1 ${align === 'end' ? 'end-0' : 'start-0'}`}
         >
           {options.map((o, i) => (
             <li
@@ -384,7 +434,7 @@ const TextField = memo(({ label, icon: Icon, as: Tag = 'input', className = '', 
       <label htmlFor={id} className="mb-1.5 block text-xs font-bold">{label}{rest.required && <span className="text-rose-500"> *</span>}</label>
       <div className="nb-field flex items-start gap-2 px-3 py-2.5">
         {Icon && <Icon aria-hidden="true" className="nb-ic mt-0.5 h-4 w-4 flex-shrink-0 sm:mt-0.5" />}
-        <Tag id={id} {...rest} className="min-w-0 flex-1 resize-none bg-transparent text-base font-semibold outline-none placeholder:font-medium placeholder:opacity-60 sm:text-sm" />
+        <Tag id={id} {...rest} className="min-w-0 flex-1 resize-none bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:opacity-70 sm:text-sm" />
       </div>
     </div>
   );
@@ -398,7 +448,7 @@ const ProfileField = memo(({ label, error, hint, readOnly, className = '', ...re
       <div className={`nb-field flex h-12 items-center px-4 ${readOnly ? '!bg-[color:var(--nb-gray)]' : ''} ${error ? '!border-rose-500' : ''}`}>
         <input
           id={id} readOnly={readOnly} aria-invalid={!!error} aria-describedby={error || hint ? `${id}-m` : undefined} {...rest}
-          className="min-w-0 flex-1 bg-transparent text-base font-semibold outline-none placeholder:font-medium placeholder:opacity-60 sm:text-sm"
+          className="min-w-0 flex-1 bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:opacity-70 sm:text-sm"
         />
       </div>
       {error ? <p id={`${id}-m`} role="alert" className="mt-1.5 text-xs font-bold text-rose-500">{error}</p>
@@ -410,14 +460,14 @@ const ProfileField = memo(({ label, error, hint, readOnly, className = '', ...re
 const DateField = memo(({ className = '', ...rest }) => (
   <label className={`nb-field flex h-10 items-center gap-2 px-3 ${className}`}>
     <FiCalendar aria-hidden="true" className="nb-ic h-4 w-4 flex-shrink-0" />
-    <input type="date" {...rest} className="min-w-0 flex-1 bg-transparent text-xs font-bold outline-none" />
+    <input type="date" {...rest} className="min-w-0 flex-1 bg-transparent text-xs font-semibold outline-none" />
   </label>
 ));
 
 const Meter = memo(({ pct, bad }) => (
-  <div className="nb-gray h-2 overflow-hidden rounded-full">
+  <div className="nb-gray nb-bd h-3 overflow-hidden rounded-full border-2">
     <div
-      className={`h-full w-full origin-left rounded-full transition-transform duration-300 rtl:origin-right motion-reduce:transition-none ${bad ? 'bg-rose-500' : 'bg-[color:var(--nb-accent)]'}`}
+      className={`h-full w-full origin-left rounded-full transition-transform duration-500 ease-out rtl:origin-right motion-reduce:transition-none ${bad ? 'bg-rose-500' : 'bg-[#39ff88]'}`}
       style={{ transform: `scaleX(${pct / 100})` }}
     />
   </div>
@@ -428,7 +478,7 @@ const ProgressBar = memo(({ progress, label }) => {
   const pct = bad ? 100 : progress;
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between gap-2 text-[11px] font-bold">
+      <div className="mb-1.5 flex items-center justify-between gap-2 text-[11px] font-semibold">
         <span className="truncate">{label}</span>
         {!bad && <span dir="ltr" className="nb-muted tabular-nums">{pct}%</span>}
       </div>
@@ -448,8 +498,8 @@ const EMPTY_ICONS = { box: FiBox, wrench: FiTool, pin: FiMapPin, bell: FiBell, c
 const EmptyState = memo(({ kind, title, subtitle }) => (
   <div className="nb-dot flex flex-col items-center gap-3 px-4 py-14 text-center">
     <IconTile Icon={EMPTY_ICONS[kind] || FiInfo} tone="em" className="h-16 w-16 !rounded-full" iconClassName="h-8 w-8" />
-    <p className="text-lg font-extrabold">{title}</p>
-    {subtitle && <p className="nb-muted max-w-sm text-sm font-medium">{subtitle}</p>}
+    <p className="text-lg font-bold">{title}</p>
+    {subtitle && <p className="nb-muted max-w-sm text-sm font-normal">{subtitle}</p>}
   </div>
 ));
 
@@ -467,14 +517,14 @@ const pageWindow = (cur, total) => {
 const Pagination = memo(({ page, total, onChange, t }) => {
   if (total <= 1) return null;
   return (
-    <nav aria-label="Pagination" className="flex flex-wrap items-center justify-center gap-2 pt-8">
+    <nav aria-label="Pagination" className="flex flex-wrap items-center justify-center gap-3 pt-8">
       <button type="button" className="nb-btn h-10 w-10" disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label={t('prevPage', 'Previous page')}>
         <FiChevronLeft className="nb-flip h-4 w-4" />
       </button>
       {pageWindow(page, total).map((x) => (typeof x === 'number' ? (
         <button key={x} type="button" onClick={() => onChange(x)} aria-label={`${t('page', 'Page')} ${x}`} aria-current={x === page ? 'page' : undefined}
-          className={`nb-btn h-10 min-w-[2.5rem] px-2 text-sm tabular-nums ${x === page ? 'nb-btn-on' : ''}`}>{x}</button>
-      ) : <span key={x} aria-hidden="true" className="px-1 font-extrabold">…</span>))}
+          className={`nb-btn h-10 min-w-[2.5rem] px-2 text-sm tabular-nums ${x === page ? 'nb-btn-a' : ''}`}>{x}</button>
+      ) : <span key={x} aria-hidden="true" className="nb-pgmu px-1 font-bold">…</span>))}
       <button type="button" className="nb-btn h-10 w-10" disabled={page >= total} onClick={() => onChange(page + 1)} aria-label={t('nextPage', 'Next page')}>
         <FiChevronRight className="nb-flip h-4 w-4" />
       </button>
@@ -490,34 +540,34 @@ const TONES = {
   repair: { DEVICE_DELIVERED: 'good', CANCELLED: 'bad', FAILED: 'bad', QUOTE_REJECTED: 'bad', QUOTE_APPROVED: 'good', QUOTE_SENT: 'violet', REPAIRING: 'teal', REPAIR_COMPLETED: 'teal', DEVICE_COLLECTED: 'info' },
 };
 const StatusLabel = memo(({ status, type = 'order', t }) => (
-  <span className="nb-gray inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-extrabold">
-    <span aria-hidden="true" className={`h-2 w-2 rounded-full ${DOT_TONES[TONES[type][status]] || DOT_TONES.warn}`} />
+  <span className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full border-2 border-black bg-white px-2.5 py-1 text-[11px] font-bold text-emerald-950">
+    <span aria-hidden="true" className={`h-2 w-2 rounded-full ring-1 ring-black/40 ${DOT_TONES[TONES[type][status]] || DOT_TONES.warn}`} />
     {t(`status_${status}`)}
   </span>
 ));
 
-const SKELETON_ROWS = [0, 1, 2];
+const SKELETON_ROWS = [0, 1, 2, 3];
 const SkeletonList = () => (
-  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3" aria-busy="true" role="status">
-    {SKELETON_ROWS.map((i) => <div key={i} className="nb-gray h-52 animate-pulse rounded-2xl motion-reduce:animate-none" />)}
+  <div className="grid grid-cols-1 gap-6 md:grid-cols-2" aria-busy="true" role="status" aria-label="Loading">
+    {SKELETON_ROWS.map((i) => <div key={i} className="nb-sk nb-card h-64 !rounded-2xl" />)}
   </div>
 );
 
 const CardShell = ({ index, children }) => (
-  <article style={STAGGER[Math.min(index, 8)]} className="nb-in nb-card nb-lift flex h-full flex-col gap-3 p-3.5">
+  <article style={STAGGER[Math.min(index, 8)]} className="nb-in nb-card nb-row-s flex h-full min-w-0 flex-col gap-3 p-3.5 sm:p-4">
     {children}
   </article>
 );
 
 const Stat = memo(({ label, value, surface }) => (
-  <div className={`nb-line min-w-0 rounded-lg border-2 px-2.5 py-1.5 ${surface === 'plain' ? 'bg-[color:var(--nb-card)]' : 'nb-gray'}`}>
-    <p className="nb-muted text-[10px] font-extrabold uppercase tracking-wide rtl:tracking-normal">{label}</p>
+  <div className={`nb-line min-w-0 rounded-xl border-2 px-2.5 py-1.5 ${surface === 'plain' ? 'bg-[color:var(--nb-card)]' : 'nb-gray'}`}>
+    <p className="nb-muted text-[10px] font-bold uppercase tracking-wide rtl:tracking-normal">{label}</p>
     <p className="truncate text-sm font-bold">{value}</p>
   </div>
 ));
 
 const Price = memo(({ value }) => (
-  <p className="text-xl font-extrabold tabular-nums">{value} <span className="nb-muted text-xs font-bold">EGP</span></p>
+  <p className="text-xl font-bold tabular-nums">{value} <span className="nb-muted text-xs font-semibold">EGP</span></p>
 ));
 
 const ItemThumb = memo(({ src, name, ratio = 'aspect-square' }) => {
@@ -546,7 +596,7 @@ const ItemThumb = memo(({ src, name, ratio = 'aspect-square' }) => {
     <div className={`relative w-full overflow-hidden bg-white [contain:layout_paint] ${ratio}`}>
       {showImage ? (
         <>
-          {!loaded && <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-black/5 motion-reduce:animate-none" />}
+          {!loaded && <div aria-hidden="true" className="nb-sk absolute inset-0 !rounded-none" />}
           <img
             ref={imgRef} src={src} alt={name || ''} width={400} height={300}
             loading="lazy" decoding="async" fetchPriority="low" referrerPolicy="no-referrer"
@@ -555,7 +605,7 @@ const ItemThumb = memo(({ src, name, ratio = 'aspect-square' }) => {
           />
         </>
       ) : (
-        <div aria-hidden="true" className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600">
+        <div aria-hidden="true" className="nb-gray nb-ic absolute inset-0 flex items-center justify-center">
           <FiBox className="h-1/3 w-1/3" />
         </div>
       )}
@@ -568,7 +618,7 @@ const ItemThumbButton = memo(({ item, onPreview, className = '', children }) => 
   return (
     <button
       type="button" onClick={open} aria-label={`Preview image: ${item.productName || ''}`}
-      className={`nb-focus relative flex-shrink-0 cursor-zoom-in overflow-hidden rounded-lg border border-[color:var(--nb-line)] bg-white ${className}`}
+      className={`nb-focus nb-bd relative flex-shrink-0 cursor-zoom-in overflow-hidden rounded-xl border-2 bg-white ${className}`}
     >
       <ItemThumb src={item._img} name={item.productName} />
       {children}
@@ -577,9 +627,17 @@ const ItemThumbButton = memo(({ item, onPreview, className = '', children }) => 
 });
 
 const CARDS_PER_PAGE = 6;
-const CARDS_GRID_CLS = 'grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3';
+const CARDS_GRID_CLS = 'grid grid-cols-1 items-stretch gap-6 md:grid-cols-2';
+const PREVIEW_ITEMS = 2;
 
-const useListView = (items, { match, price, ipp = 6 }) => {
+const SORTERS = {
+  newest: (a, b) => b._ts - a._ts,
+  oldest: (a, b) => a._ts - b._ts,
+  price_desc: (a, b) => b._price - a._price,
+  price_asc: (a, b) => a._price - b._price,
+};
+
+const useListView = (items, { ipp = 6 } = {}) => {
   const [status, setStatus] = useState('');
   const [date, setDate] = useState('');
   const [search, setSearch] = useState('');
@@ -588,11 +646,9 @@ const useListView = (items, { match, price, ipp = 6 }) => {
   const term = useDeferredValue(search).trim().toLowerCase();
 
   const filtered = useMemo(() => {
-    const list = items.filter((x) => (!status || x.status === status) && (!date || dayOf(x.createdAt) === date) && (!term || match(x, term)));
-    const n = (x) => Number(x[price]) || 0;
-    const ts = (x) => Date.parse(x.createdAt) || 0;
-    return list.sort((a, b) => (sort === 'oldest' ? ts(a) - ts(b) : sort === 'price_desc' ? n(b) - n(a) : sort === 'price_asc' ? n(a) - n(b) : ts(b) - ts(a)));
-  }, [items, status, date, term, sort, match, price]);
+    const list = items.filter((x) => (!status || x.status === status) && (!date || x._day === date) && (!term || x._q.includes(term)));
+    return list.sort(SORTERS[sort] || SORTERS.newest);
+  }, [items, status, date, term, sort]);
 
   useEffect(() => { setPage(1); }, [status, date, term, sort]);
   const total = Math.max(1, Math.ceil(filtered.length / ipp));
@@ -600,7 +656,11 @@ const useListView = (items, { match, price, ipp = 6 }) => {
   const pageItems = useMemo(() => filtered.slice((current - 1) * ipp, current * ipp), [filtered, current, ipp]);
   const active = !!(status || date || search || sort !== 'newest');
   const reset = useCallback(() => { setStatus(''); setDate(''); setSearch(''); setSort('newest'); }, []);
-  return { status, setStatus, date, setDate, search, setSearch, sort, setSort, page: current, setPage, total, filtered, pageItems, active, reset };
+  const changePage = useCallback((p) => {
+    setPage(p);
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
+  }, []);
+  return { status, setStatus, date, setDate, search, setSearch, sort, setSort, page: current, setPage: changePage, total, filtered, pageItems, active, reset };
 };
 
 const FilterBar = memo(({ view, statuses, t }) => {
@@ -614,59 +674,81 @@ const FilterBar = memo(({ view, statuses, t }) => {
     <div className="nb-card mb-6 flex flex-col gap-3 p-3 sm:p-4">
       <div className="flex flex-wrap items-center gap-3">
         <div className="nb-field flex h-10 min-w-[150px] flex-1 items-center gap-2 px-3">
-          <FiSearch aria-hidden="true" className="h-4 w-4 flex-shrink-0" />
-          <input type="search" value={search} maxLength={60} onChange={(e) => setSearch(e.target.value)} placeholder={t('search')} aria-label={t('search')}
-            className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:font-medium placeholder:opacity-60" />
+          <FiSearch aria-hidden="true" className="nb-ic h-4 w-4 flex-shrink-0" />
+          <input type="search" value={search} maxLength={60} autoComplete="off" onChange={(e) => setSearch(e.target.value)} placeholder={t('search')} aria-label={t('search')}
+            className="min-w-0 flex-1 bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:opacity-70 sm:text-sm" />
         </div>
         <NbDropdown value={status} onChange={setStatus} options={statusOptions} ariaLabel={t('allStatuses')} className="w-full sm:w-48" />
         <NbDropdown value={sort} onChange={setSort} options={sortOptions} ariaLabel={t('sortBy')} className="w-full sm:w-48" />
         <DateField value={date} onChange={(e) => setDate(e.target.value)} aria-label="Date" className="w-full sm:w-44" />
         {active && <Btn tone="soft" onClick={reset} className="h-10 px-3 text-xs"><FiX className="h-3.5 w-3.5" /> {t('clear')}</Btn>}
       </div>
-      <p className="nb-muted text-[11px] font-bold" aria-live="polite">{filtered.length} result{filtered.length === 1 ? '' : 's'}</p>
+      <p className="nb-muted text-[11px] font-semibold" aria-live="polite">{filtered.length} result{filtered.length === 1 ? '' : 's'}</p>
     </div>
   );
 });
 
+const MetaCell = memo(({ label, children }) => (
+  <div className="min-w-0">
+    <p className="nb-muted text-[11px] font-semibold">{label}</p>
+    <p className="mt-0.5 truncate text-sm font-bold">{children}</p>
+  </div>
+));
+
 const OrderCard = memo(({ order, t, index, onDetails, onCancel, onPreview }) => {
-  const items = order.orderItems || [];
-  const first = items[0];
-  const extra = items.length - 1;
+  const items = order.orderItems || EMPTY_LIST;
   const count = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0) || items.length;
   const canCancel = !isDone(order.status);
   const payment = isEmpty(order.paymentMethod) ? '—' : String(order.paymentMethod).replace('_', ' ');
+  const shown = items.length > PREVIEW_ITEMS ? items.slice(0, PREVIEW_ITEMS) : items;
+  const extra = items.length - shown.length;
   return (
-    <CardShell index={index}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate font-mono text-[11px] font-extrabold tracking-wide">ORD #{String(order.id).slice(0, 6)}</p>
-          {!isEmpty(order.createdAt) && <p className="nb-muted flex items-center gap-1 text-[11px] font-semibold"><FiCalendar className="h-3 w-3" />{fmtShort(order.createdAt)}</p>}
+    <article style={STAGGER[Math.min(index, 8)]} className="nb-in nb-card nb-row flex h-full min-w-0 flex-col gap-4 overflow-hidden p-3 sm:p-4">
+      <div className="nb-head space-y-3 px-3.5 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <p dir="ltr" className="min-w-0 truncate text-xs font-bold tabular-nums">ORD #{String(order.id).slice(0, 8).toUpperCase()}</p>
+          <StatusLabel status={order.status} t={t} />
         </div>
-        <StatusLabel status={order.status} t={t} />
+        <div className="grid grid-cols-3 gap-x-3">
+          <MetaCell label={t('orderPlaced', 'Order placed')}>{isEmpty(order.createdAt) ? '—' : fmtShort(order.createdAt)}</MetaCell>
+          <MetaCell label={t('total', 'Total')}><span dir="ltr">{isEmpty(order.totalPrice) ? '—' : `EGP ${order.totalPrice}`}</span></MetaCell>
+          <MetaCell label={t('paymentMethod', 'Payment method')}>{payment}</MetaCell>
+        </div>
       </div>
 
-      <div className="flex gap-3">
-        {first ? (
-          <ItemThumbButton item={first} onPreview={onPreview} className="w-20 sm:w-24">
-            {extra > 0 && <span dir="ltr" className="absolute bottom-1 end-1 rounded-full bg-black/70 px-1.5 py-0.5 text-[10px] font-extrabold text-white">+{extra}</span>}
-          </ItemThumbButton>
+      <div className="flex flex-1 flex-col gap-4 px-1 pb-1">
+        {shown.length === 0 ? (
+          <div className="flex items-center gap-3">
+            <IconTile Icon={FiBox} tone="am" className="h-16 w-16 !rounded-xl" iconClassName="h-7 w-7" />
+            <p className="nb-muted text-sm font-semibold">{t('noItems', 'No items')}</p>
+          </div>
         ) : (
-          <IconTile Icon={FiBox} tone="am" className="h-20 w-20 sm:h-24 sm:w-24" iconClassName="h-8 w-8" />
+          <ul className="space-y-3">
+            {shown.map((it, i) => (
+              <li key={it.id ?? i} className="flex items-center gap-3">
+                <ItemThumbButton item={it} onPreview={onPreview} className="w-16" />
+                <div className="min-w-0 flex-1">
+                  <p className="line-clamp-2 text-sm font-bold leading-snug">{it.productName || '—'}</p>
+                  <p className="nb-muted truncate text-xs font-medium">{it.shopName || '—'}</p>
+                  <p dir="ltr" className="nb-muted text-xs font-medium rtl:text-end">{it.quantity} × EGP {Number(it.priceAtCheckout || 0).toFixed(2)}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
-        <div className="min-w-0 flex-1">
-          <p className="line-clamp-2 text-sm font-bold leading-snug">{first?.productName || '—'}</p>
-          {first?.shopName && <p className="nb-muted mt-0.5 truncate text-xs font-semibold">{first.shopName}</p>}
-          <p className="nb-muted mt-1.5 text-xs font-semibold"><span dir="ltr">{count}</span> {t('items')} · {payment}</p>
+        {extra > 0 && <p dir="ltr" className="nb-muted text-xs font-semibold rtl:text-end">+{extra} {t('items', 'items')}</p>}
+
+        <ProgressBar progress={orderProgress(order.status)} label={t(`status_${order.status}`)} />
+
+        <div className="nb-line mt-auto flex flex-wrap items-center justify-between gap-3 border-t-2 pt-4">
+          <p className="nb-muted text-xs font-medium"><span dir="ltr">{count}</span> {t('items', 'items')}</p>
+          <div className="flex flex-wrap gap-2">
+            <Btn tone="soft" onClick={() => onDetails(order)} className="min-h-9 px-3.5 py-2 text-xs"><FiInfo className="h-3.5 w-3.5" /> {t('details')}</Btn>
+            {canCancel && <Btn tone="danger" onClick={() => onCancel(order.id)} className="min-h-9 px-3.5 py-2 text-xs"><FiXCircle className="h-3.5 w-3.5" /> {t('cancelOrder')}</Btn>}
+          </div>
         </div>
       </div>
-
-      <ProgressBar progress={orderProgress(order.status)} label={t(`status_${order.status}`)} />
-      {!isEmpty(order.totalPrice) && <Price value={order.totalPrice} />}
-      <div className={`nb-line mt-auto grid gap-2 border-t-2 pt-3 ${canCancel ? 'grid-cols-2' : 'grid-cols-1'}`}>
-        <Btn tone="soft" onClick={() => onDetails(order)} className="py-2 text-xs"><FiInfo className="h-3.5 w-3.5" /> {t('details')}</Btn>
-        {canCancel && <Btn tone="danger" onClick={() => onCancel(order.id)} className="py-2 text-xs"><FiXCircle className="h-3.5 w-3.5" /> {t('cancelOrder')}</Btn>}
-      </div>
-    </CardShell>
+    </article>
   );
 });
 
@@ -680,13 +762,13 @@ const RepairCard = memo(({ req, t, index, awaitingPayment, onDetails, onEdit, on
       <div className="flex items-center gap-2.5">
         <IconTile Icon={FiTool} tone="vi" className="h-11 w-11" iconClassName="h-5 w-5" />
         <div className="min-w-0 flex-1">
-          <p className="truncate font-mono text-[11px] font-extrabold tracking-wide">REQ #{String(req.id).slice(0, 6)}</p>
+          <p className="truncate font-mono text-[11px] font-bold tracking-wide">REQ #{String(req.id).slice(0, 6)}</p>
           <p className="truncate text-sm font-bold">{req.shopName}</p>
         </div>
         <StatusLabel status={req.status} type="repair" t={t} />
       </div>
       <ProgressBar progress={repairProgress(req.status)} label={t(`status_${req.status}`)} />
-      {awaitingPayment && <p className="flex items-center gap-1.5 text-xs font-extrabold text-amber-600"><FiClock className="h-3.5 w-3.5" /> Awaiting payment</p>}
+      {awaitingPayment && <p className="flex items-center gap-1.5 text-xs font-bold text-amber-600"><FiClock className="h-3.5 w-3.5" /> Awaiting payment</p>}
       {!isEmpty(req.description) && <p className="line-clamp-2 text-xs leading-relaxed opacity-90">{req.description}</p>}
       {hasPrice && <Price value={req.price} />}
       <div className="nb-line mt-auto grid grid-cols-2 gap-2 border-t-2 pt-3">
@@ -702,8 +784,7 @@ const RepairCard = memo(({ req, t, index, awaitingPayment, onDetails, onEdit, on
 });
 
 const OrdersTab = memo(({ orders, onDetails, onCancel, onPreview, t }) => {
-  const match = useCallback((o, term) => String(o.id || '').toLowerCase().includes(term) || (o.orderItems || []).some((i) => String(i.productName || '').toLowerCase().includes(term)), []);
-  const view = useListView(orders, { match, price: 'totalPrice', ipp: CARDS_PER_PAGE });
+  const view = useListView(orders, { ipp: CARDS_PER_PAGE });
   return (
     <>
       <FilterBar view={view} statuses={ORDER_STATUSES} t={t} />
@@ -722,8 +803,7 @@ const OrdersTab = memo(({ orders, onDetails, onCancel, onPreview, t }) => {
 });
 
 const RepairsTab = memo(({ repairs, payingId, onDetails, onEdit, onAccept, onConfirm, onCancel, onPay, t }) => {
-  const match = useCallback((r, term) => `${r.shopName || ''} ${r.description || ''} ${r.id || ''}`.toLowerCase().includes(term), []);
-  const view = useListView(repairs, { match, price: 'price', ipp: CARDS_PER_PAGE });
+  const view = useListView(repairs, { ipp: CARDS_PER_PAGE });
   return (
     <>
       <FilterBar view={view} statuses={REPAIR_STATUSES} t={t} />
@@ -765,36 +845,41 @@ const ModalFrame = ({ onClose, size = 'sm:max-w-lg', label, role = 'dialog', bac
   useEffect(() => { if (closeRef) closeRef.current = close; }, [closeRef, close]);
   useEffect(() => () => clearTimeout(timer.current), []);
   useEffect(() => {
+    const prevFocus = document.activeElement;
+    const prevOverflow = document.body.style.overflow;
     const onKey = (e) => { if (e.key === 'Escape') close(); };
-    const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', onKey);
     panelRef.current?.focus({ preventScroll: true });
-    return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', onKey); };
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKey);
+      prevFocus?.focus?.({ preventScroll: true });
+    };
   }, [close]);
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-end justify-center p-0 sm:items-center sm:p-4">
-      <div className={`mdl-overlay ${closing ? 'is-closing' : ''} absolute inset-0 bg-black/60`} onClick={backdropClose ? close : undefined} aria-hidden="true" />
+      <div className={`mdl-overlay ${closing ? 'is-closing' : ''} absolute inset-0 bg-[color:var(--nb-scrim)]`} onClick={backdropClose ? close : undefined} aria-hidden="true" />
       <div ref={panelRef} tabIndex={-1} role={role} aria-modal="true" aria-label={label}
-        className={`nb-card mdl-panel ${closing ? 'is-closing' : ''} relative flex max-h-[92vh] w-full flex-col overflow-hidden !rounded-b-none shadow-2xl outline-none sm:!rounded-2xl ${size}`}>
+        className={`nb-card nb-big mdl-panel ${closing ? 'is-closing' : ''} relative flex max-h-[92vh] w-full flex-col overflow-hidden !rounded-b-none outline-none sm:!rounded-2xl ${size}`}>
         {typeof children === 'function' ? children(close) : children}
       </div>
     </div>
   );
 };
 
-const Sheet = ({ onClose, icon, tone = 'em', title, subtitle, size, footer, backdropClose, closeRef, children }) => (
+const Sheet = ({ onClose, icon: Icon, title, subtitle, size, footer, backdropClose, closeRef, children }) => (
   <ModalFrame onClose={onClose} size={size} label={title} backdropClose={backdropClose} closeRef={closeRef}>
     {(close) => (
       <>
-        <header className="nb-gray nb-line flex flex-shrink-0 items-center gap-3 border-b-2 px-4 py-3.5 sm:px-5">
-          <IconTile Icon={icon} tone={tone} className="h-10 w-10 !rounded-full" iconClassName="h-5 w-5" />
+        <header className="nb-band flex flex-shrink-0 items-center gap-3 px-4 py-3.5 sm:px-5">
+          <span aria-hidden="true" className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border-2 border-black bg-white text-emerald-950"><Icon className="h-5 w-5" /></span>
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-base font-extrabold">{title}</h2>
-            {subtitle && <p className="nb-muted mt-0.5 truncate text-[11px] font-bold">{subtitle}</p>}
+            <h2 className="truncate text-base font-bold">{title}</h2>
+            {subtitle && <p className="nb-muted mt-0.5 truncate text-[11px] font-semibold">{subtitle}</p>}
           </div>
-          <button type="button" onClick={close} aria-label="Close" className="nb-btn h-9 w-9 flex-shrink-0 !rounded-full"><FiX className="h-4 w-4" /></button>
+          <button type="button" onClick={close} aria-label="Close" className="nb-btn h-9 w-9 flex-shrink-0 !bg-white !text-emerald-950"><FiX className="h-4 w-4" /></button>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
           {typeof children === 'function' ? children(close) : children}
@@ -810,9 +895,9 @@ const Sheet = ({ onClose, icon, tone = 'em', title, subtitle, size, footer, back
 );
 
 const Section = memo(({ icon, tone, title, right, children }) => (
-  <section className="nb-gray nb-line rounded-xl border-2 p-3.5">
-    <h3 className="mb-3 flex items-center gap-2.5 text-xs font-extrabold">
-      <IconTile Icon={icon} tone={tone} className="h-7 w-7 !rounded-full" iconClassName="h-3.5 w-3.5" />
+  <section className="nb-gray nb-line rounded-2xl border-2 p-3.5">
+    <h3 className="mb-3 flex items-center gap-2.5 text-xs font-bold">
+      <IconTile Icon={icon} tone={tone} className="h-7 w-7" iconClassName="h-3.5 w-3.5" />
       <span className="min-w-0 flex-1 truncate">{title}</span>
       {right}
     </h3>
@@ -827,7 +912,7 @@ const OptionTabs = memo(({ options, value, onChange, label, cols, disabled }) =>
       const Icon = o.icon;
       return (
         <button key={o.value} type="button" role="radio" aria-checked={on} disabled={disabled} onClick={() => onChange(o.value)}
-          className={`nb-btn flex-col gap-1 px-2 py-2.5 text-xs ${on ? 'nb-btn-on' : ''}`}>
+          className={`nb-btn flex-col gap-1 px-2 py-2.5 text-xs ${on ? 'nb-btn-a' : ''}`}>
           <Icon className="h-4 w-4" /> {o.label}
         </button>
       );
@@ -850,8 +935,8 @@ const ConfirmDialog = memo(({ dlg, onSettle, onClose }) => {
         <>
           <div className="px-6 pb-6 pt-8 text-center">
             <IconTile Icon={Icon} tone={m.tile} className="mx-auto h-16 w-16 !rounded-full" iconClassName="h-7 w-7" />
-            <h2 className="mt-4 text-xl font-extrabold">{dlg.title}</h2>
-            {dlg.text && <p className="nb-muted mx-auto mt-3 max-w-xs text-sm font-medium leading-relaxed">{dlg.text}</p>}
+            <h2 className="mt-4 text-xl font-bold">{dlg.title}</h2>
+            {dlg.text && <p className="nb-muted mx-auto mt-3 max-w-xs text-sm font-normal leading-relaxed">{dlg.text}</p>}
           </div>
           <div className="nb-gray nb-line grid grid-cols-2 gap-3 border-t-2 px-5 py-4">
             <Btn tone="soft" onClick={close} className="py-3 text-sm">{dlg.cancelText || 'Cancel'}</Btn>
@@ -865,24 +950,24 @@ const ConfirmDialog = memo(({ dlg, onSettle, onClose }) => {
 
 const FORM_FIELDS = ['first_name', 'last_name', 'phone'];
 const FIELD_MAX = { first_name: 50, last_name: 50, phone: 20 };
+const VALIDATORS = { first_name: nameValidationError, last_name: nameValidationError, phone: phoneValidationError };
 
 const ProfileTab = memo(({ profile, form, setForm, active, onSave, onDelete, language, onChangeLanguage, t }) => {
   const [errors, setErrors] = useState({ first_name: '', last_name: '', phone: '' });
   const [saving, setSaving] = useState(false);
   const dirty = FORM_FIELDS.some((k) => String(form[k] ?? '').trim() !== String(profile?.[k] ?? '').trim());
-  const validators = { first_name: nameValidationError, last_name: nameValidationError, phone: phoneValidationError };
 
   const upd = (k) => (e) => {
     const v = e.target.value.slice(0, FIELD_MAX[k]);
     setForm((f) => ({ ...f, [k]: v }));
-    setErrors((er) => (er[k] ? { ...er, [k]: validators[k](v) } : er));
+    setErrors((er) => (er[k] ? { ...er, [k]: VALIDATORS[k](v) } : er));
   };
 
   const submit = async (e) => {
     e.preventDefault();
     if (saving) return;
     const next = {};
-    FORM_FIELDS.forEach((k) => { next[k] = validators[k](form[k]); });
+    FORM_FIELDS.forEach((k) => { next[k] = VALIDATORS[k](form[k]); });
     setErrors(next);
     if (FORM_FIELDS.some((k) => next[k])) return;
     setSaving(true);
@@ -894,8 +979,8 @@ const ProfileTab = memo(({ profile, form, setForm, active, onSave, onDelete, lan
       <form onSubmit={submit} noValidate className="space-y-6">
         <section className="nb-panel p-5 sm:p-8">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-extrabold sm:text-xl">{t('contactInfo', 'Contact information')}</h2>
-            <span className={`nb-gray inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-extrabold ${active ? 'text-emerald-500' : 'text-rose-500'}`}>
+            <h2 className="text-lg font-bold sm:text-xl">{t('contactInfo', 'Contact information')}</h2>
+            <span className={`nb-gray nb-bd inline-flex items-center gap-1.5 rounded-full border-2 px-3 py-1 text-xs font-bold ${active ? 'text-emerald-600' : 'text-rose-500'}`}>
               {active ? <FiCheckCircle aria-hidden="true" className="h-3.5 w-3.5" /> : <FiXCircle aria-hidden="true" className="h-3.5 w-3.5" />}
               {active ? t('active') : t('inactive')}
             </span>
@@ -908,7 +993,7 @@ const ProfileTab = memo(({ profile, form, setForm, active, onSave, onDelete, lan
         </section>
 
         <section className="nb-panel p-5 sm:p-8">
-          <h2 className="mb-6 text-lg font-extrabold sm:text-xl">{t('personalInfo', 'Personal information')}</h2>
+          <h2 className="mb-6 text-lg font-bold sm:text-xl">{t('personalInfo', 'Personal information')}</h2>
           <div className="grid gap-6 sm:grid-cols-2">
             <ProfileField label={t('firstName')} autoComplete="given-name" required value={form.first_name} onChange={upd('first_name')} error={errors.first_name} maxLength={FIELD_MAX.first_name} />
             <ProfileField label={t('lastName')} autoComplete="family-name" required value={form.last_name} onChange={upd('last_name')} error={errors.last_name} maxLength={FIELD_MAX.last_name} />
@@ -922,12 +1007,12 @@ const ProfileTab = memo(({ profile, form, setForm, active, onSave, onDelete, lan
       </form>
 
       <section className="nb-panel flex flex-col gap-3 p-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-6">
-        <p className="flex items-center gap-2 text-sm font-extrabold"><FiGlobe aria-hidden="true" className="nb-ic h-4 w-4" /> {t('language')}</p>
+        <p className="flex items-center gap-2 text-sm font-bold"><FiGlobe aria-hidden="true" className="nb-ic h-4 w-4" /> {t('language')}</p>
         <NbDropdown value={language} onChange={onChangeLanguage} options={LANG_OPTIONS} ariaLabel={t('selectLanguage')} align="end" className="w-full sm:w-52" />
       </section>
 
-      <section className="nb-panel !border-rose-300 p-5 sm:p-6">
-        <h3 className="flex items-center gap-2 text-sm font-extrabold text-rose-500"><FiTrash2 aria-hidden="true" className="h-4 w-4" /> {t('dangerZone')}</h3>
+      <section className="nb-panel !border-rose-500 p-5 sm:p-6">
+        <h3 className="flex items-center gap-2 text-sm font-bold text-rose-500"><FiTrash2 aria-hidden="true" className="h-4 w-4" /> {t('dangerZone')}</h3>
         <p className="nb-muted mb-3 mt-1 text-xs font-medium">{t('dangerZoneHint')}</p>
         <Btn tone="danger" onClick={onDelete} className="min-h-11 w-full px-4 py-2 text-xs sm:min-h-0 sm:w-auto"><FiTrash2 className="h-3.5 w-3.5" /> {t('deleteAccount')}</Btn>
       </section>
@@ -938,7 +1023,7 @@ const ProfileTab = memo(({ profile, form, setForm, active, onSave, onDelete, lan
 const EMPTY_ADDR = { state: '', city: '', street: '', building: '', notes: '', isDefault: false, latitude: 0, longitude: 0 };
 const REQUIRED_ADDR = ['state', 'city', 'street', 'building'];
 const COORD_FIELDS = [['latitude', 'Latitude', 90], ['longitude', 'Longitude', 180]];
-const MAP_FALLBACK_CLS = 'nb-gray h-[320px] animate-pulse rounded-2xl motion-reduce:animate-none sm:h-[380px]';
+const MAP_FALLBACK_CLS = 'nb-sk nb-card h-[320px] !rounded-2xl sm:h-[380px]';
 
 const AddressesTab = memo(({ addresses, inUseIds, onCreate, onUpdate, onDelete, darkMode, t }) => {
   const [editingId, setEditingId] = useState(null);
@@ -985,11 +1070,11 @@ const AddressesTab = memo(({ addresses, inUseIds, onCreate, onUpdate, onDelete, 
     );
     return (
       <form onSubmit={submit} className="nb-panel space-y-5 p-5 sm:p-8">
-        <h2 className="text-lg font-extrabold sm:text-xl">{editingId === 'new' ? t('addAddress') : t('editAddress')}</h2>
+        <h2 className="text-lg font-bold sm:text-xl">{editingId === 'new' ? t('addAddress') : t('editAddress')}</h2>
         <div className="grid grid-cols-2 gap-2.5" role="tablist">
           {[['manual', FiList, t('addressInformation')], ['map', FiNavigation, t('pickOnMap')]].map(([m, Icon, label]) => (
             <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => setMode(m)}
-              className={`nb-btn px-2 py-2.5 text-xs ${mode === m ? 'nb-btn-on' : ''}`}>
+              className={`nb-btn px-2 py-2.5 text-xs ${mode === m ? 'nb-btn-a' : ''}`}>
               <Icon className="h-3.5 w-3.5" /> {label}
             </button>
           ))}
@@ -1012,11 +1097,11 @@ const AddressesTab = memo(({ addresses, inUseIds, onCreate, onUpdate, onDelete, 
         )}
 
         <label className="flex cursor-pointer items-center gap-2.5">
-          <input type="checkbox" className="h-4 w-4 accent-emerald-500" checked={form.isDefault} onChange={(e) => setForm((f) => ({ ...f, isDefault: e.target.checked }))} />
+          <input type="checkbox" className="h-4 w-4 accent-emerald-600" checked={form.isDefault} onChange={(e) => setForm((f) => ({ ...f, isDefault: e.target.checked }))} />
           <span className="text-sm font-bold">{t('setDefaultAddress')}</span>
         </label>
         {!isValid && (
-          <p role="status" className="flex items-center gap-1.5 text-xs font-bold text-amber-500">
+          <p role="status" className="flex items-center gap-1.5 text-xs font-bold text-amber-600">
             <FiInfo aria-hidden="true" className="h-3.5 w-3.5 flex-shrink-0" /> {t('fillRequiredFields', 'Fill in all required fields (*) to save')}
           </p>
         )}
@@ -1043,14 +1128,14 @@ const AddressesTab = memo(({ addresses, inUseIds, onCreate, onUpdate, onDelete, 
                 <div className="flex items-start gap-2.5">
                   <IconTile Icon={FiMapPin} tone="sky" className="h-11 w-11 !rounded-full" iconClassName="h-5 w-5" />
                   <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-sm font-extrabold">{a.street}, {a.building}</h3>
+                    <h3 className="truncate text-sm font-bold">{a.street}, {a.building}</h3>
                     <p className="nb-muted truncate text-xs font-semibold">{a.city}, {a.state}</p>
-                    {a.isDefault && <p className="nb-ic mt-1 flex items-center gap-1 text-[11px] font-extrabold"><FiCheckCircle className="h-3 w-3" /> {t('default')}</p>}
+                    {a.isDefault && <p className="nb-ic mt-1 flex items-center gap-1 text-[11px] font-bold"><FiCheckCircle className="h-3 w-3" /> {t('default')}</p>}
                   </div>
                 </div>
                 {!isEmpty(a.notes) && <p className="nb-gray line-clamp-2 rounded-lg px-2.5 py-1.5 text-xs italic">“{a.notes}”</p>}
                 {hasCoords && (
-                  <a href={directionsUrl(a.latitude, a.longitude)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-[11px] font-extrabold underline underline-offset-4">
+                  <a href={directionsUrl(a.latitude, a.longitude)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-[11px] font-bold underline underline-offset-4">
                     <FiExternalLink className="nb-ic h-3 w-3" /> {t('getDirections')}
                     <span dir="ltr" className="nb-muted ms-auto font-mono font-normal normal-case">{Number(a.latitude).toFixed(4)}, {Number(a.longitude).toFixed(4)}</span>
                   </a>
@@ -1060,7 +1145,7 @@ const AddressesTab = memo(({ addresses, inUseIds, onCreate, onUpdate, onDelete, 
                     <Btn tone="soft" disabled={inUse} onClick={() => startEdit(a)} className="py-2 text-xs"><FiEdit2 className="h-3.5 w-3.5" /> {inUse ? t('inUse') : t('edit')}</Btn>
                     <Btn tone="danger" disabled={inUse} onClick={() => onDelete(a.id)} className="py-2 text-xs" aria-label={t('delete')}><FiTrash2 className="h-3.5 w-3.5" /> {t('delete')}</Btn>
                   </div>
-                  {inUse && <p className="mt-2 flex items-center gap-1 text-[11px] font-bold text-amber-500"><FiInfo className="h-3 w-3" /> {t('usedInActiveOrderRepair')}</p>}
+                  {inUse && <p className="mt-2 flex items-center gap-1 text-[11px] font-bold text-amber-600"><FiInfo className="h-3 w-3" /> {t('usedInActiveOrderRepair')}</p>}
                 </div>
               </CardShell>
             );
@@ -1071,34 +1156,39 @@ const AddressesTab = memo(({ addresses, inUseIds, onCreate, onUpdate, onDelete, 
   );
 });
 
+const NOTIF_PER_PAGE = 6;
+
 const NotificationsTab = memo(({ items, onDelete, t }) => {
   const [page, setPage] = useState(1);
-  const ipp = 6;
-  const total = Math.max(1, Math.ceil(items.length / ipp));
+  const total = Math.max(1, Math.ceil(items.length / NOTIF_PER_PAGE));
   const current = Math.min(page, total);
-  const pageItems = useMemo(() => items.slice((current - 1) * ipp, current * ipp), [items, current]);
+  const pageItems = useMemo(() => items.slice((current - 1) * NOTIF_PER_PAGE, current * NOTIF_PER_PAGE), [items, current]);
+  const changePage = useCallback((p) => {
+    setPage(p);
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
+  }, []);
 
   return (
     <>
       {items.length === 0 ? <EmptyState kind="bell" title={t('noNotifications')} subtitle={t('notificationHint')} /> : (
         <>
-          <ul className="space-y-3">
+          <ul className="space-y-4">
             {pageItems.map((n, i) => (
-              <li key={n.id} style={STAGGER[Math.min(i, 8)]} className="nb-in nb-card flex items-start gap-3 p-3.5">
+              <li key={n.id} style={STAGGER[Math.min(i, 8)]} className="nb-in nb-card nb-row-s flex items-start gap-3 p-3.5">
                 <IconTile Icon={FiBell} tone="ro" className="h-9 w-9 !rounded-full" iconClassName="h-4 w-4" />
                 <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-2 text-sm font-extrabold">
+                  <p className="flex items-center gap-2 text-sm font-bold">
                     <span className="truncate">{n.title || n.subject || 'Notification'}</span>
-                    {!n.read && <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-emerald-500" aria-label="Unread" />}
+                    {!n.read && <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full border-2 border-black bg-[#39ff88]" aria-label="Unread" />}
                   </p>
                   {!isEmpty(n.message || n.body) && <p className="mt-1 text-xs leading-relaxed opacity-90">{n.message || n.body}</p>}
-                  {!isEmpty(n.createdAt) && <p className="nb-muted mt-1.5 flex items-center gap-1 text-[10px] font-bold"><FiClock className="h-3 w-3" />{fmtFull(n.createdAt)}</p>}
+                  {!isEmpty(n.createdAt) && <p className="nb-muted mt-1.5 flex items-center gap-1 text-[10px] font-semibold"><FiClock className="h-3 w-3" />{fmtFull(n.createdAt)}</p>}
                 </div>
                 <button type="button" onClick={() => onDelete(n.id)} aria-label={t('delete')} className="nb-btn h-8 w-8 flex-shrink-0"><FiTrash2 className="h-4 w-4 text-rose-500" /></button>
               </li>
             ))}
           </ul>
-          <Pagination page={current} total={total} onChange={setPage} t={t} />
+          <Pagination page={current} total={total} onChange={changePage} t={t} />
         </>
       )}
     </>
@@ -1121,8 +1211,8 @@ const Donut = memo(({ data, darkMode, size = 144, thickness = 22 }) => {
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`${total} total`}>
       <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
-        {total === 0 ? <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={darkMode ? '#262626' : '#e5e7eb'} strokeWidth={thickness} />
-          : data.map((d, i) => {
+        {total === 0 ? <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={darkMode ? '#2a2a2e' : '#e5e7eb'} strokeWidth={thickness} />
+          : data.map((d) => {
             const frac = d.value / total;
             const len = Math.max(0, frac * c - gap);
             const el = <circle key={d.label} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={d.color} strokeWidth={thickness} strokeDasharray={`${len} ${c - len}`} strokeDashoffset={-acc * c} />;
@@ -1130,7 +1220,7 @@ const Donut = memo(({ data, darkMode, size = 144, thickness = 22 }) => {
             return el;
           })}
       </g>
-      <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fill={darkMode ? '#ffffff' : '#111827'} style={{ fontSize: 24, fontWeight: 800 }}>{total}</text>
+      <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fill={darkMode ? '#ffffff' : '#052e1e'} style={{ fontSize: 24, fontWeight: 700 }}>{total}</text>
     </svg>
   );
 });
@@ -1141,8 +1231,8 @@ const Legend = memo(({ data }) => {
     <ul className="min-w-[150px] flex-1 space-y-1.5">
       {data.map((d) => (
         <li key={d.label} className="flex items-center gap-2 text-xs">
-          <span className="h-3 w-3 flex-shrink-0 rounded-full" style={{ backgroundColor: d.color }} />
-          <span className="flex-1 truncate font-bold">{d.label}</span>
+          <span className="h-3 w-3 flex-shrink-0 rounded-full border border-black/40" style={{ backgroundColor: d.color }} />
+          <span className="flex-1 truncate font-semibold">{d.label}</span>
           <b>{d.value}</b>
           <span className="nb-muted w-9 text-end font-semibold">{Math.round((d.value / total) * 100)}%</span>
         </li>
@@ -1175,23 +1265,23 @@ const AnalyticsTab = memo(({ orders, repairs, addresses, darkMode, t }) => {
     { icon: FiMapPin, tone: 'ro', value: addresses.length, label: t('savedAddresses') },
   ];
   const bars = [
-    [t('ordersDelivered'), n.delivered, orders.length, 'bg-emerald-500'],
-    [t('ordersCancelled'), n.cancelled, orders.length, 'bg-rose-500'],
-    [t('repairsCompleted'), n.done, repairs.length, 'bg-sky-500'],
+    [t('ordersDelivered'), n.delivered, orders.length, 'bg-[#39ff88]'],
+    [t('ordersCancelled'), n.cancelled, orders.length, 'bg-rose-400'],
+    [t('repairsCompleted'), n.done, repairs.length, 'bg-sky-400'],
     [t('repairsCancelledFailed'), n.failed, repairs.length, 'bg-amber-400'],
   ];
   const panel = 'nb-card p-4 sm:p-5';
-  const h = 'mb-4 flex items-center gap-2 text-sm font-extrabold';
+  const h = 'mb-4 flex items-center gap-2 text-sm font-bold';
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {stats.map(({ icon, tone, value, label }, i) => (
           <div key={label} style={STAGGER[i]} className="nb-in nb-card relative overflow-hidden p-3.5">
             <span aria-hidden="true" className={`pointer-events-none absolute -end-6 -top-6 h-20 w-20 rounded-full opacity-25 ${BLOB[tone]}`} />
-            <IconTile Icon={icon} tone={tone} className="mb-2 h-9 w-9 !rounded-full" iconClassName="h-4 w-4" />
-            <p className="text-xl font-extrabold tabular-nums">{value}</p>
-            <p className="nb-muted text-[11px] font-bold">{label}</p>
+            <IconTile Icon={icon} tone={tone} className="mb-2 h-9 w-9" iconClassName="h-4 w-4" />
+            <p className="text-xl font-bold tabular-nums">{value}</p>
+            <p className="nb-muted text-[11px] font-semibold">{label}</p>
           </div>
         ))}
       </div>
@@ -1200,7 +1290,7 @@ const AnalyticsTab = memo(({ orders, repairs, addresses, darkMode, t }) => {
         <EmptyState kind="chart" title={t('notEnoughActivity')} subtitle={t('analyticsHint')} />
       ) : (
         <>
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid gap-6 lg:grid-cols-2">
             {[[FiBox, t('ordersByStatus'), orderData, orders.length, t('noOrdersYet')], [FiTool, t('repairsByStatus'), repairData, repairs.length, t('noRepairs')]].map(([Icon, title, data, count, none]) => (
               <section key={title} className={panel}>
                 <h3 className={h}><Icon className="nb-ic h-4 w-4" /> {title}</h3>
@@ -1217,11 +1307,11 @@ const AnalyticsTab = memo(({ orders, repairs, addresses, darkMode, t }) => {
                 return (
                   <div key={label}>
                     <div className="mb-1 flex justify-between text-xs">
-                      <span className="font-extrabold">{label}</span>
-                      <span dir="ltr" className="nb-muted font-bold">{value}/{total} · {pct}%</span>
+                      <span className="font-bold">{label}</span>
+                      <span dir="ltr" className="nb-muted font-semibold">{value}/{total} · {pct}%</span>
                     </div>
-                    <div className="nb-gray h-2.5 overflow-hidden rounded-full">
-                      <div className={`h-full w-full origin-left rounded-full transition-transform duration-300 rtl:origin-right motion-reduce:transition-none ${color}`} style={{ transform: `scaleX(${pct / 100})` }} />
+                    <div className="nb-gray nb-bd h-3 overflow-hidden rounded-full border-2">
+                      <div className={`h-full w-full origin-left rounded-full transition-transform duration-500 rtl:origin-right motion-reduce:transition-none ${color}`} style={{ transform: `scaleX(${pct / 100})` }} />
                     </div>
                   </div>
                 );
@@ -1242,29 +1332,29 @@ const AboutTab = memo(({ darkMode, t }) => {
     { icon: FiTruck, tone: 'sky', title: t('doorstepDelivery'), text: t('doorstepDeliveryText') },
   ];
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <section className="nb-panel flex flex-col items-center gap-4 p-5 sm:flex-row sm:p-6">
-        <div className="nb-gray h-32 w-32 flex-shrink-0 rounded-2xl p-2">
-          <Suspense fallback={<div className="h-full w-full animate-pulse rounded-xl bg-black/5 motion-reduce:animate-none" />}>
+        <div className="nb-gray nb-bd h-32 w-32 flex-shrink-0 rounded-2xl border-2 p-2">
+          <Suspense fallback={<div className="nb-sk h-full w-full !rounded-xl" />}>
             <IsoIllustration type="shop_store" tone="emerald" darkMode={darkMode} onGreen={false} className="h-28 w-28" />
           </Suspense>
         </div>
         <p className="text-sm font-medium leading-relaxed opacity-90">{t('aboutDescription')}</p>
       </section>
       <section className="nb-panel p-5 sm:p-6">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-extrabold"><FiAward className="nb-ic h-4 w-4" /> <span>{t('whyChooseUs')}</span></h3>
+        <h3 className="mb-4 flex items-center gap-2 text-sm font-bold"><FiAward className="nb-ic h-4 w-4" /> <span>{t('whyChooseUs')}</span></h3>
         <div className="grid gap-4 sm:grid-cols-2">
           {values.map(({ icon, tone, title, text }) => (
-            <div key={title} className="nb-gray flex gap-3 rounded-xl p-3">
-              <IconTile Icon={icon} tone={tone} className="h-10 w-10 !rounded-full" iconClassName="h-5 w-5" />
-              <div className="min-w-0"><p className="text-sm font-extrabold">{title}</p><p className="nb-muted mt-0.5 text-xs font-medium">{text}</p></div>
+            <div key={title} className="nb-gray nb-line flex gap-3 rounded-2xl border-2 p-3">
+              <IconTile Icon={icon} tone={tone} className="h-10 w-10" iconClassName="h-5 w-5" />
+              <div className="min-w-0"><p className="text-sm font-bold">{title}</p><p className="nb-muted mt-0.5 text-xs font-medium">{text}</p></div>
             </div>
           ))}
         </div>
       </section>
       <section className="nb-panel p-5 sm:p-6">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-extrabold"><FiSend className="nb-ic h-4 w-4" /> <span>{t('getInTouch')}</span></h3>
-        <div className="nb-gray grid gap-3 rounded-xl p-3.5 sm:grid-cols-3">
+        <h3 className="mb-4 flex items-center gap-2 text-sm font-bold"><FiSend className="nb-ic h-4 w-4" /> <span>{t('getInTouch')}</span></h3>
+        <div className="nb-gray nb-line grid gap-3 rounded-2xl border-2 p-3.5 sm:grid-cols-3">
           <InfoRow icon={FiMail}>support@tech-restore.com</InfoRow>
           <InfoRow icon={FiPhone}><span dir="ltr">+20 100 000 0000</span></InfoRow>
           <InfoRow icon={FiMapPin}>Cairo, Egypt</InfoRow>
@@ -1278,14 +1368,14 @@ const ItemPreview = memo(({ item, onClose, t }) => (
   <Sheet onClose={onClose} icon={FiBox} tone="am" size="sm:max-w-lg" title={item.productName || '—'}
     subtitle={`${item.quantity ?? 1} × EGP ${Number(item.priceAtCheckout || 0).toFixed(2)}`}
     footer={(close) => <div className="flex justify-end"><Btn tone="soft" onClick={close} className="px-6 py-2 text-sm">{t('close')}</Btn></div>}>
-    <div className="overflow-hidden rounded-xl border border-[color:var(--nb-line)]">
+    <div className="nb-bd overflow-hidden rounded-2xl border-2">
       <ItemThumb src={item._img} name={item.productName} ratio="aspect-[4/3]" />
     </div>
   </Sheet>
 ));
 
 const OrderModal = memo(({ order, onClose, onPreview, t }) => {
-  const items = order.orderItems || [];
+  const items = order.orderItems || EMPTY_LIST;
   return (
     <Sheet onClose={onClose} icon={FiBox} tone="am" size="sm:max-w-2xl"
       title={`ORD #${String(order.id).slice(0, 8).toUpperCase()}`}
@@ -1304,20 +1394,20 @@ const OrderModal = memo(({ order, onClose, onPreview, t }) => {
         </Section>
 
         <Section icon={FiBox} tone="am" title={t('orderItems')}>
-          <ul className="nb-line divide-y-2 divide-[color:var(--nb-line)] overflow-hidden rounded-lg border-2 bg-[color:var(--nb-card)]">
+          <ul className="nb-line divide-y-2 divide-[color:var(--nb-line)] overflow-hidden rounded-xl border-2 bg-[color:var(--nb-card)]">
             {items.length === 0 ? <li className="nb-muted p-8 text-center text-sm">{t('noItems')}</li> : items.map((it, i) => (
               <li key={it.id ?? i} className="flex items-center gap-3 p-3">
                 <ItemThumbButton item={it} onPreview={onPreview} className="w-16" />
                 <div className="min-w-0 flex-1">
                   <p className="line-clamp-2 text-sm font-bold leading-snug">{it.productName || '—'}</p>
-                  <p className="nb-muted truncate text-xs font-semibold">{it.shopName || '—'} · <span dir="ltr">{it.quantity} × EGP {Number(it.priceAtCheckout || 0).toFixed(2)}</span></p>
+                  <p className="nb-muted truncate text-xs font-medium">{it.shopName || '—'} · <span dir="ltr">{it.quantity} × EGP {Number(it.priceAtCheckout || 0).toFixed(2)}</span></p>
                 </div>
-                <b dir="ltr" className="flex-shrink-0 text-sm tabular-nums">EGP {round2((Number(it.priceAtCheckout) || 0) * (Number(it.quantity) || 0)).toFixed(2)}</b>
+                <b dir="ltr" className="flex-shrink-0 text-sm font-bold tabular-nums">EGP {round2((Number(it.priceAtCheckout) || 0) * (Number(it.quantity) || 0)).toFixed(2)}</b>
               </li>
             ))}
             <li className="nb-gray flex items-center justify-between p-3">
-              <span className="text-xs font-extrabold">{t('grandTotal')}</span>
-              <b dir="ltr" className="text-lg tabular-nums">EGP {order.totalPrice ?? '—'}</b>
+              <span className="text-xs font-bold">{t('grandTotal')}</span>
+              <b dir="ltr" className="text-lg font-bold tabular-nums">EGP {order.totalPrice ?? '—'}</b>
             </li>
           </ul>
         </Section>
@@ -1428,14 +1518,14 @@ const ConfirmRepairModal = memo(({ req, addresses, token, onClose, onSuccess }) 
       )}>
       <form onSubmit={submit} className="space-y-4">
         <Section icon={FiShoppingBag} tone="em" title="Shop & quoted price">
-          <div className="nb-line flex items-center justify-between gap-3 rounded-lg border-2 bg-[color:var(--nb-card)] p-3">
+          <div className="nb-line flex items-center justify-between gap-3 rounded-xl border-2 bg-[color:var(--nb-card)] p-3">
             <div className="min-w-0">
-              <p className="nb-muted text-[10px] font-extrabold uppercase tracking-wide rtl:tracking-normal">Shop</p>
-              <p className="truncate text-sm font-extrabold">{req.shopName || '—'}</p>
+              <p className="nb-muted text-[10px] font-bold uppercase tracking-wide rtl:tracking-normal">Shop</p>
+              <p className="truncate text-sm font-bold">{req.shopName || '—'}</p>
             </div>
             <div className="flex-shrink-0 text-end">
-              <p className="nb-muted text-[10px] font-extrabold uppercase tracking-wide rtl:tracking-normal">Price quoted</p>
-              <p className="text-2xl font-extrabold tabular-nums">{isEmpty(req.price) ? '—' : req.price} <span className="nb-muted text-xs font-bold">EGP</span></p>
+              <p className="nb-muted text-[10px] font-bold uppercase tracking-wide rtl:tracking-normal">Price quoted</p>
+              <p className="text-2xl font-bold tabular-nums">{isEmpty(req.price) ? '—' : req.price} <span className="nb-muted text-xs font-semibold">EGP</span></p>
             </div>
           </div>
           {!priceOk && <p role="alert" className="mt-2 text-xs font-bold text-rose-500">This quote doesn&apos;t have a valid price yet. Please wait for the shop to set one.</p>}
@@ -1467,7 +1557,7 @@ const RepairPaymentModal = memo(({ pay, repair, checking, onClose, onOpenPayment
             ? 'Your card was not charged and the repair order is not confirmed. You can try the payment again.'
             : 'Your repair order is confirmed only after the payment succeeds. If you closed the payment page, open it again.'}
         </p>
-        <p className={`text-xs font-extrabold tracking-wide ${failed ? 'text-rose-500' : 'nb-ic'}`} dir="ltr">
+        <p className={`text-xs font-bold tracking-wide ${failed ? 'text-rose-500' : 'nb-ic'}`} dir="ltr">
           REQ #{String(pay.orderId).slice(0, 8)}{repair?.shopName ? ` · ${repair.shopName}` : ''}
         </p>
         {failed ? (
@@ -1498,7 +1588,7 @@ const NavItem = memo(({ tab, active, onSelect, onWarm }) => {
     <button type="button" onClick={select} onPointerEnter={warm} onFocus={warm} aria-current={active ? 'page' : undefined} className="nb-navitem">
       <tab.icon aria-hidden="true" className="nb-ic h-5 w-5 flex-shrink-0" />
       <span className="min-w-0 flex-1 truncate">{tab.label}</span>
-      {!!tab.badge && <span dir="ltr" className="nb-gray rounded-full px-2 py-0.5 text-[11px] font-extrabold tabular-nums">{tab.badge}</span>}
+      {!!tab.badge && <span dir="ltr" className="rounded-full border-2 border-black bg-white px-2 py-0.5 text-[11px] font-bold tabular-nums text-emerald-950">{tab.badge}</span>}
     </button>
   );
 });
@@ -1508,21 +1598,21 @@ const PillTab = memo(({ tab, active, onSelect, onWarm }) => {
   const select = useCallback(() => onSelect(tab.id), [onSelect, tab.id]);
   return (
     <button type="button" onClick={select} onPointerEnter={warm} onFocus={warm} aria-current={active ? 'page' : undefined}
-      className={`nb-btn nb-tab flex-shrink-0 whitespace-nowrap !rounded-full px-3.5 py-2 text-xs ${active ? 'nb-btn-on' : ''}`}>
+      className={`nb-btn flex-shrink-0 whitespace-nowrap !rounded-full px-3.5 py-2 text-xs ${active ? 'nb-btn-a' : ''}`}>
       <tab.icon aria-hidden="true" className={`h-4 w-4 flex-shrink-0 ${active ? '' : 'nb-ic'}`} />
       <span>{tab.label}</span>
-      {!!tab.badge && <span dir="ltr" className="text-[11px] font-extrabold tabular-nums opacity-80">{tab.badge}</span>}
+      {!!tab.badge && <span dir="ltr" className="text-[11px] font-bold tabular-nums opacity-80">{tab.badge}</span>}
     </button>
   );
 });
 
 const GreetingCard = memo(({ name, email, pct, t }) => (
   <div className="nb-panel p-5">
-    <p className="text-xl font-extrabold">{t('hello', 'Hello')}{name ? `, ${name}` : ''}</p>
+    <p className="text-xl font-bold">{t('hello', 'Hello')}{name ? `, ${name}` : ''}</p>
     {email && <p className="nb-muted mt-1 break-all text-sm font-medium" dir="ltr">{email}</p>}
-    <div className="mt-4 flex items-center justify-between gap-2 text-xs font-extrabold">
+    <div className="mt-4 flex items-center justify-between gap-2 text-xs font-bold">
       <span>{t('personalizeExperience', 'Complete your profile')}</span>
-      <span dir="ltr" className="nb-gray rounded-full px-2.5 py-0.5 tabular-nums">{pct}%</span>
+      <span dir="ltr" className="nb-gray nb-bd rounded-full border-2 px-2.5 py-0.5 tabular-nums">{pct}%</span>
     </div>
     <div className="mt-2"><Meter pct={pct} bad={false} /></div>
   </div>
@@ -1609,7 +1699,7 @@ const useRepairActions = ({ cfg, ask, mutate }) => {
 
 const RepairOverlays = memo(({ actions, token, cfg, addresses, onConfirmed, t }) => {
   const { selectedRepair, editingRepair, confirmReq, closeRepair, closeEdit, closeConfirmReq, submitRepairEdit } = actions;
-  const { data: categories = [] } = useQuery({
+  const { data: categories = EMPTY_LIST } = useQuery({
     queryKey: ['categories'],
     queryFn: async ({ signal }) => unwrap(await api.get('/api/categories', { ...cfg, signal })),
     enabled: !!token && !!editingRepair,
@@ -1637,8 +1727,8 @@ const LatestRepairs = memo(({ token, limit = LATEST_LIMIT }) => {
   const { dlg, ask, settle, close } = useConfirmDialog();
   const actions = useRepairActions({ cfg, ask, mutate });
 
-  const { data: repairs = [], isLoading } = useAcct('repairs', '/api/users/repair-request', token, { refetchOnMount: 'always' });
-  const { data: addresses = [] } = useAcct('addresses', '/api/users/addresses', token, { enabled: !!token && !!actions.confirmReq });
+  const { data: repairs = EMPTY_LIST, isLoading } = useAcct('repairs', '/api/users/repair-request', token, { refetchOnMount: 'always' });
+  const { data: addresses = EMPTY_LIST } = useAcct('addresses', '/api/users/addresses', token, { enabled: !!token && !!actions.confirmReq });
 
   const awaitingId = useMemo(() => {
     const p = loadPending('repair');
@@ -1656,7 +1746,7 @@ const LatestRepairs = memo(({ token, limit = LATEST_LIMIT }) => {
       {REPAIRS_STYLE_EL}
       <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <h2 className="text-2xl font-extrabold leading-tight sm:text-3xl">{t('latestRepairs', 'Latest repairs')}</h2>
+          <h2 className="text-2xl font-bold leading-tight sm:text-3xl">{t('latestRepairs', 'Latest repairs')}</h2>
         </div>
         <Btn tone="soft" onClick={goAccount} className="px-3 py-2 text-xs">
           {t('viewAll', 'View all')} <FiChevronRight className="nb-flip h-3.5 w-3.5" />
@@ -1684,7 +1774,6 @@ const AccountContent = ({ darkMode = false }) => {
   const location = useLocation();
   const qc = useQueryClient();
   const language = useAppLanguage();
-  const isAr = language === 'ar';
   const t = useCallback((k, fallback) => tr(language, k, fallback), [language]);
   const [, startTransition] = useTransition();
 
@@ -1737,10 +1826,10 @@ const AccountContent = ({ darkMode = false }) => {
   const pollRepairs = REPAIR_LIVE_SECTIONS.has(section) ? LIVE_POLL_MS : false;
 
   const { data: profile, isLoading: profileLoading } = useAcct('profile', '/api/users/profile', token, { list: false });
-  const { data: addresses = [], isLoading: addressesLoading } = useAcct('addresses', '/api/users/addresses', token);
-  const { data: orders = [], isLoading: ordersLoading } = useAcct('orders', '/api/users/orders', token, { refetchInterval: pollOrders });
-  const { data: repairs = [], isLoading: repairsLoading } = useAcct('repairs', '/api/users/repair-request', token, { refetchInterval: pollRepairs, refetchOnMount: 'always' });
-  const { data: notifications = [], isLoading: notificationsLoading } = useAcct('notifications', '/api/notifications/users', token, { refetchInterval: NOTIF_POLL_MS });
+  const { data: addresses = EMPTY_LIST, isLoading: addressesLoading } = useAcct('addresses', '/api/users/addresses', token);
+  const { data: orders = EMPTY_LIST, isLoading: ordersLoading } = useAcct('orders', '/api/users/orders', token, { refetchInterval: pollOrders });
+  const { data: repairs = EMPTY_LIST, isLoading: repairsLoading } = useAcct('repairs', '/api/users/repair-request', token, { refetchInterval: pollRepairs, refetchOnMount: 'always' });
+  const { data: notifications = EMPTY_LIST, isLoading: notificationsLoading } = useAcct('notifications', '/api/notifications/users', token, { refetchInterval: NOTIF_POLL_MS });
 
   const wantImages = (section === 'orders' || !!selectedOrder) && orders.length > 0;
   const { data: imageMap = EMPTY_MAP } = useQuery({
@@ -1750,7 +1839,8 @@ const AccountContent = ({ darkMode = false }) => {
     staleTime: 5 * 60_000,
     retry: false,
   });
-  const ordersView = useMemo(() => (wantImages ? orders.map((o) => enrichOrder(o, imageMap)) : orders), [wantImages, orders, imageMap]);
+  const ordersView = useDecorated(orders, imageMap, buildOrder);
+  const repairsView = useDecorated(repairs, null, buildRepair);
   const orderModalData = useMemo(
     () => (selectedOrder ? ordersView.find((o) => o.id === selectedOrder.id) || selectedOrder : null),
     [selectedOrder, ordersView],
@@ -1938,25 +2028,24 @@ const AccountContent = ({ darkMode = false }) => {
   else if (section === 'profile') content = <ProfileTab profile={profile} form={profileForm} setForm={setProfileForm} active={!!profile?.activate} onSave={saveProfile} onDelete={deleteAccount} language={language} onChangeLanguage={changeLanguage} t={t} />;
   else if (section === 'addresses') content = <AddressesTab addresses={addresses} inUseIds={inUseIds} onCreate={createAddress} onUpdate={updateAddress} onDelete={deleteAddress} darkMode={darkMode} t={t} />;
   else if (section === 'orders') content = <OrdersTab orders={ordersView} onDetails={setSelectedOrder} onCancel={cancelOrder} onPreview={openPreview} t={t} />;
-  else if (section === 'repairs') content = <RepairsTab repairs={repairs} payingId={payingId} onDetails={repairActions.viewRepair} onEdit={repairActions.setEditingRepair} onAccept={repairActions.acceptQuote} onConfirm={repairActions.openConfirm} onCancel={repairActions.cancelRepair} onPay={openPayModal} t={t} />;
+  else if (section === 'repairs') content = <RepairsTab repairs={repairsView} payingId={payingId} onDetails={repairActions.viewRepair} onEdit={repairActions.setEditingRepair} onAccept={repairActions.acceptQuote} onConfirm={repairActions.openConfirm} onCancel={repairActions.cancelRepair} onPay={openPayModal} t={t} />;
   else if (section === 'notifications') content = <NotificationsTab items={notifications} onDelete={deleteNotification} t={t} />;
   else if (section === 'analytics') content = <AnalyticsTab orders={orders} repairs={repairs} addresses={addresses} darkMode={darkMode} t={t} />;
   else content = <AboutTab darkMode={darkMode} t={t} />;
 
   return (
-    <div dir={languageDirection(language)} lang={language}
-      className={`nb ${darkMode ? 'nb-dark' : ''} min-h-screen overflow-x-clip ${isAr ? 'font-cairo' : 'font-jakarta'}`}>
+    <div dir={languageDirection(language)} lang={language} className={`nb ${darkMode ? 'nb-dark' : ''} min-h-screen overflow-x-clip`}>
       {STYLE_EL}
       <Defs3D />
 
-      <div className={`mx-auto max-w-7xl px-4 pb-24 pt-40 transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none sm:px-6 md:pb-14 md:pt-36 lg:px-8 ${switching ? 'translate-y-1 opacity-0' : ''}`}>
+      <div className={`mx-auto max-w-[88rem] px-4 pb-28 pt-40 transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none sm:px-6 md:pb-14 md:pt-36 lg:px-8 ${switching ? 'translate-y-1 opacity-0' : ''}`}>
         <div className="flex items-start gap-6 lg:gap-8">
 
-          <aside className="sticky top-28 hidden max-h-[calc(100vh-8rem)] w-[17rem] min-w-0 flex-shrink-0 space-y-4 self-start overflow-y-auto overscroll-contain pb-2 lg:block xl:w-[19rem]">
+          <aside className="sticky top-28 hidden max-h-[calc(100vh-8rem)] w-[17rem] min-w-0 flex-shrink-0 space-y-5 self-start overflow-y-auto overscroll-contain p-1 pb-3 lg:block xl:w-[19rem]">
             <GreetingCard name={name} email={profile?.email} pct={completeness} t={t} />
             {groups.map((g) => (
               <nav key={g.id} className="nb-panel p-2.5" aria-label={g.id === 'activity' ? t('activity', 'Activity') : t('yourAccount', 'Your account')}>
-                {g.id === 'account' && <p className="nb-muted px-3.5 pb-1 pt-2 text-xs font-extrabold">{t('yourAccount', 'Your account')}</p>}
+                {g.id === 'account' && <p className="nb-muted px-3.5 pb-1 pt-2 text-xs font-bold">{t('yourAccount', 'Your account')}</p>}
                 {g.tabs.map((tab) => <NavItem key={tab.id} tab={tab} active={section === tab.id} onSelect={go} onWarm={prefetchMap} />)}
                 {g.id === 'account' && (
                   <button type="button" onClick={logout} className="nb-navitem !text-rose-500">
@@ -1971,7 +2060,7 @@ const AccountContent = ({ darkMode = false }) => {
           <main className="min-w-0 flex-1">
             <PageHead title={t(meta[0], meta[1])} subtitle={t(meta[2], meta[3])} />
 
-            <nav className="hide-scrollbar -mx-1 mb-6 flex gap-2 overflow-x-auto px-1 pb-3 pe-3 lg:hidden" aria-label="Account sections">
+            <nav className="hide-scrollbar -mx-1 mb-6 flex gap-3 overflow-x-auto px-1 pb-4 pe-3 pt-1 lg:hidden" aria-label="Account sections">
               {allTabs.map((tab) => <PillTab key={tab.id} tab={tab} active={section === tab.id} onSelect={go} onWarm={prefetchMap} />)}
             </nav>
 
